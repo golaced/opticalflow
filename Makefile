@@ -89,7 +89,7 @@ objcopy:
 	@python -u Tools/px_mkfw.py --prototype px4flow_prototype.px4 --image $(BINARY_BIN) > px4flow.px4
 
 clean:
-	rm -f *.o *.d $(BINARY) $(BINARY_BIN)
+	rm -f *.o *.d *.px4 *.elf *.bin
 
 upload-jtag:		all flash-both
 
