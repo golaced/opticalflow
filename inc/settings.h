@@ -98,7 +98,7 @@ typedef struct
 
 } SysState_TypeDef;
 
-enum global_param_id_t
+enum
 {
 	PARAM_SYSTEM_ID = 0,
 	PARAM_COMPONENT_ID,
@@ -107,7 +107,6 @@ enum global_param_id_t
 	PARAM_AUTOPILOT_TYPE,
 	PARAM_SW_VERSION,
 	PARAM_SYSTEM_SEND_STATE,
-	PARAM_SYSTEM_SEND_LPOS,
 
 	PARAM_USART2_BAUD,
 	PARAM_USART3_BAUD,
@@ -139,14 +138,13 @@ enum global_param_id_t
 	PARAM_BOTTOM_FLOW_GYRO_COMPENSATION,
 	PARAM_BOTTOM_FLOW_LP_FILTERED,
 	PARAM_BOTTOM_FLOW_WEIGHT_NEW,
-	PARAM_BOTTOM_FLOW_SERIAL_THROTTLE_FACTOR,
 
 	PARAM_SENSOR_POSITION,
 	DEBUG_VARIABLE,
 
 	ONBOARD_PARAM_COUNT
 
-};
+} global_param_id;
 
 struct global_struct
 {
@@ -157,9 +155,7 @@ struct global_struct
 
 };
 
-/* global declarations */
-extern enum global_param_id_t global_param_id;
-extern struct global_struct global_data;
+struct global_struct global_data;
 
 /******************************************************************
   * ALL SETTINGS FUNCTIONS

@@ -78,8 +78,6 @@
 #define ADDR_REFERENCE				0x25
 #define ADDR_TEMPERATURE			0x26
 
-#define L3GD20_TEMP_OFFSET_CELSIUS  40
-
 #define ADDR_STATUS_REG				0x27
 #define STATUS_ZYXOR				(1<<7)
 #define SATAUS_ZOR					(1<<6)
@@ -147,17 +145,17 @@ void gyro_config(void);
 /**
  * @brief Read out newest gyro value
  */
-void gyro_read(float* x_rate, float* y_rate, float* z_rate, int16_t* gyro_temp);
+void gyro_read(float* x_rate, float* y_rate, float* z_rate);
 
 /* Low layer functions */
 void spi_config(void);
-void l3gd20_config(void);
+void l3gd20_config();
 uint8_t l3gd20_ReadByte(void);
 uint8_t l3gd20_SendByte(uint8_t byte);
 uint16_t l3gd20_SendHalfWord(uint16_t HalfWord);
 void l3gd20_WriteEnable(void);
 void l3gd20_WaitForWriteEnd(void);
-uint8_t getGyroRange(void);
-int getGyroScalingFactor(void);
+uint8_t getGyroRange();
+int getGyroScalingFactor();
 
 #endif /* SPI_L3GD20_H_ */

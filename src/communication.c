@@ -47,8 +47,8 @@
 #include "debug.h"
 #include "communication.h"
 
-extern uint32_t get_boot_time_us(void);
-extern void buffer_reset(void);
+extern uint32_t get_boot_time_ms();
+extern void buffer_reset();
 extern void systemreset(bool to_bootloader);
 
 mavlink_system_t mavlink_system;
@@ -112,14 +112,14 @@ void handle_mavlink_message(mavlink_channel_t chan,
 	}
 
 	/* forwarded received messages from usb and usart3 to usart2 */
-	if(chan == MAVLINK_COMM_0 || chan == MAVLINK_COMM_2)
-	{
-		uint8_t buf[MAVLINK_MAX_PACKET_LEN];
-		uint32_t len;
+	uint8_t buf[MAVLINK_MAX_PACKET_LEN];
+	uint32_t len;
 
-		// Copy to USART 2
-		len = mavlink_msg_to_send_buffer(buf, msg);
-		mavlink_send_uart_bytes(MAVLINK_COMM_1, buf, len);
+	/* copy to usart2 */
+	len = mavlink_msg_to_send_buffer(buf, msg);
+	for (int i = 0; i < len; i++)
+	{
+		usart2_tx_ringbuffer_push(buf, len);
 	}
 
 	/* handling messages */
@@ -141,7 +141,7 @@ void handle_mavlink_message(mavlink_channel_t chan,
 				if (set.param_id[0] != -1)
 				{
 					/* Choose parameter based on index */
-					if ((set.param_index >= 0) && (set.param_index < ONBOARD_PARAM_COUNT))
+					if (0 <= set.param_index < ONBOARD_PARAM_COUNT)
 					{
 						/* Report back value */
 						mavlink_msg_param_value_send(chan,
@@ -308,7 +308,7 @@ void handle_mavlink_message(mavlink_channel_t chan,
 			if (ping.target_system == 0 && ping.target_component == 0)
 			{
 				/* Respond to ping */
-				uint64_t r_timestamp = get_boot_time_us();
+				uint64_t r_timestamp = get_boot_time_ms() * 1000;
 				mavlink_msg_ping_send(chan, ping.seq, msg->sysid, msg->compid, r_timestamp);
 			}
 		}
@@ -421,17 +421,12 @@ void communication_receive_usb(void)
  * @param chan MAVLink channel to use
  * @param ch Character to send
  */
-void mavlink_send_uart_bytes(mavlink_channel_t chan, const uint8_t * ch, uint16_t length)
+void mavlink_send_uart_bytes(mavlink_channel_t chan, uint8_t * ch, uint16_t length)
 {
 	if (chan == MAVLINK_COMM_0)
 	{
 		/* send to UART3 */
 		usart3_tx_ringbuffer_push(ch, length);
-	}
-	if (chan == MAVLINK_COMM_1)
-	{
-		/* send to UART2 */
-		usart2_tx_ringbuffer_push(ch, length);
 	}
 	if (chan == MAVLINK_COMM_2)
 	{

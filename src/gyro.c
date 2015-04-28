@@ -41,21 +41,19 @@
 #include "stm32f4xx_rcc.h"
 #include "misc.h"
 #include "gyro.h"
-#include <math.h>
 
 float gyro_scale;
 float x_rate_offset = 0.0f, y_rate_offset = 0.0f, z_rate_offset = 0.0f;
 const float gyro_offset_lp_gain = 0.0001;
 static int sensor_range;
 
-
 enum
 {
-    GYRO_DPS250 = 0, GYRO_DPS500, GYRO_DPS2000
+    GYRO_DPS50 = 0, GYRO_DPS100, GYRO_DPS150, GYRO_DPS200, GYRO_DPS250, GYRO_DPS500, GYRO_DPS1000, GYRO_DPS2000
 } GYRO_DPS_Values;
 
-static float scaling_factors[] =
-{8.75f, 17.5f, 70.0f};//mdps/digit
+static int scaling_factors[] =
+{ 37548, 18774, 12516, 9387, 7510, 3755, 1877, 939 };
 
 /**
  * @brief Configures Gyro
@@ -76,7 +74,7 @@ void gyro_config()
  * @param y_rate Return value y rate
  * @param z_rate Return value z rate
  */
-void gyro_read(float* x_rate, float* y_rate, float* z_rate, int16_t* gyro_temp)
+void gyro_read(float* x_rate, float* y_rate, float* z_rate)
 {
 	int16_t x_rate_raw, y_rate_raw, z_rate_raw;
 	x_rate_raw = 0;
@@ -98,10 +96,6 @@ void gyro_read(float* x_rate, float* y_rate, float* z_rate, int16_t* gyro_temp)
 	*x_rate = x_rate_raw * gyro_scale - x_rate_offset;
 	*y_rate = y_rate_raw * gyro_scale - y_rate_offset;
 	*z_rate = z_rate_raw * gyro_scale - z_rate_offset;
-
-	int8_t temp_raw = 0;
-	temp_raw = (int8_t)l3gd20_SendHalfWord(0x8000 | 0x2600);
-	*gyro_temp = (L3GD20_TEMP_OFFSET_CELSIUS-(int16_t)temp_raw)*100;//Temperature * 100 in centi-degrees Celsius [degcelsius*100]
 }
 
 /**
@@ -142,7 +136,7 @@ void l3gd20_config()
 	    sensor_range = GYRO_DPS500;
 	}
 
-	gyro_scale = scaling_factors[sensor_range] / (1000.0f) * (float)M_PI / 180.0f; // scaling_factors in mdps/digit to dps/digit, degree to radian
+	gyro_scale = (global_data.param[PARAM_GYRO_SENSITIVITY_DPS]) / (32768.0f) * 3.1416f / 180.0f; // 32768 -> short range, degree to radian
 }
 
 /**

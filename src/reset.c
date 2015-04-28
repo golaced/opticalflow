@@ -56,12 +56,6 @@
 # define getreg32(a)          (*(volatile uint32_t *)(a))
 # define putreg32(v,a)        (*(volatile uint32_t *)(a) = (v))
 
-
-/* prototypes */
-void modifyreg32(unsigned int addr, uint32_t clearbits, uint32_t setbits);
-void stm32_pwr_enablebkp(void);
-void systemreset(bool to_bootloader);
-
 void modifyreg32(unsigned int addr, uint32_t clearbits, uint32_t setbits)
 {
   uint32_t   regval;
@@ -100,7 +94,8 @@ void up_systemreset(void)
   for (;;);
 }
 
-void systemreset(bool to_bootloader)
+void
+systemreset(bool to_bootloader)
 {
     if (to_bootloader) {
         stm32_pwr_enablebkp();

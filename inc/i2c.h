@@ -1,6 +1,7 @@
 /****************************************************************************
  *
- *   Copyright (c) 2013-2015 PX4 Development Team. All rights reserved.
+ *   Copyright (C) 2013 Fortiss An-Institut TU Munchen All rights reserved.
+ *   Author: Thomas Boehm <thomas.boehm@fortiss.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -12,9 +13,6 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 3. Neither the name PX4 nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -30,14 +28,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
-
-/**
- * @file i2c.h
- * I2C communication functions.
- * @author Thomas Boehm <thomas.boehm@fortiss.org>
- */
-
-
 #ifndef I2C_H_
 #define I2C_H_
 #include <inttypes.h>
@@ -47,9 +37,9 @@
  * @brief  Configures I2C1 for communication as a slave (default behaviour for STM32F)
  */
 
-void i2c_init(void);
-void update_TX_buffer(float pixel_flow_x, float pixel_flow_y, float flow_comp_m_x, float flow_comp_m_y, uint8_t qual,
-        float ground_distance, float x_rate, float y_rate, float z_rate, int16_t gyro_temp);
-char i2c_get_ownaddress1(void);
+void i2c_init();
+void update_TX_buffer(float pixel_flow_x_sum, float pixel_flow_y_sum, float flow_comp_m_x, float flow_comp_m_y, uint16_t qual,
+        float ground_distance, float x_rate, float y_rate, float z_rate);
+char i2c_get_ownaddress1();
 #endif /* I2C_H_ */
 

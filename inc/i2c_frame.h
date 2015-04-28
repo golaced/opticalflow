@@ -1,6 +1,7 @@
 /****************************************************************************
  *
- *   Copyright (c) 2013-2015 PX4 Development Team. All rights reserved.
+ *   Copyright (C) 2013 Fortiss An-Institut TU Munchen All rights reserved.
+ *   Author: Thomas Boehm <thomas.boehm@fortiss.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -12,9 +13,6 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 3. Neither the name PX4 nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -30,20 +28,12 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
-
-/**
- * @file i2c_frame.h
- * Definition of i2c frames.
- * @author Thomas Boehm <thomas.boehm@fortiss.org>
- * @author James Goppert <james.goppert@gmail.com>
- */
-
 #ifndef I2C_FRAME_H_
 #define I2C_FRAME_H_
 #include <inttypes.h>
 
-
-typedef  struct i2c_frame
+#define I2C_FRAME_SIZE (sizeof(i2c_frame))
+typedef struct i2c_frame
 {
     uint16_t frame_count;
     int16_t pixel_flow_x_sum;
@@ -58,25 +48,5 @@ typedef  struct i2c_frame
     uint8_t sonar_timestamp;
     int16_t ground_distance;
 } i2c_frame;
-
-#define I2C_FRAME_SIZE (sizeof(i2c_frame))
-
-
-typedef struct i2c_integral_frame
-{
-    uint16_t frame_count_since_last_readout;
-    int16_t pixel_flow_x_integral;
-    int16_t pixel_flow_y_integral;
-    int16_t gyro_x_rate_integral;
-    int16_t gyro_y_rate_integral;
-    int16_t gyro_z_rate_integral;
-    uint32_t integration_timespan;
-    uint32_t sonar_timestamp;
-    uint16_t ground_distance;
-    int16_t gyro_temperature;
-    uint8_t qual;
-} i2c_integral_frame;
-
-#define I2C_INTEGRAL_FRAME_SIZE (sizeof(i2c_integral_frame))
 
 #endif /* I2C_FRAME_H_ */

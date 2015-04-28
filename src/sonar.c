@@ -48,14 +48,9 @@
 #include "usart.h"
 #include "settings.h"
 #include "sonar.h"
-#include "sonar_mode_filter.h"
-
-#define SONAR_SCALE	1000.0f
-#define SONAR_MIN	0.12f		/** 0.12m sonar minimum distance */
-#define SONAR_MAX	3.5f		/** 3.50m sonar maximum distance */
 
 extern int atoi (__const char *__nptr);
-extern uint32_t get_boot_time_us(void);
+extern uint32_t get_boot_time_ms(void);
 
 static char data_buffer[5]; // array for collecting decoded data
 
@@ -77,9 +72,6 @@ float x_post = 0.0f; // m
 float v_post = 0.0f; // m/s
 
 float sonar_raw = 0.0f;  // m
-
-float sonar_mode = 0.0f;
-float sonar_valid = false;				/**< the mode of all sonar measurements */
 
 /**
   * @brief  Triggers the sonar to measure the next value
@@ -124,21 +116,19 @@ void UART4_IRQHandler(void)
 				data_buffer[4] = 0;
 				int temp = atoi(data_buffer);
 
-				/* use real-world maximum ranges to cut off pure noise */
-				if ((temp > SONAR_MIN*SONAR_SCALE) && (temp < SONAR_MAX*SONAR_SCALE))
+				/*
+				 * 4744 or 4743 is invalid data (or upper/lower than maximal/minimal range)
+				 */
+				if (temp > 0 && temp < 4743)
 				{
 					/* it is in normal sensor range, take it */
 					last_measure_time = measure_time;
-					measure_time = get_boot_time_us();
-					sonar_measure_time_interrupt = measure_time;
-					dt = ((float)(measure_time - last_measure_time)) / 1000000.0f;
+					measure_time = get_boot_time_ms();
+                    sonar_measure_time_interrupt = measure_time;
+					dt = ((float)(measure_time - last_measure_time)) / 1000.0f;
 
 					valid_data = temp;
-					sonar_mode = insert_sonar_value_and_get_mode_value(valid_data / SONAR_SCALE);
 					new_value = 1;
-					sonar_valid = true;
-				} else {
-					sonar_valid = false;
 				}
 			}
 
@@ -157,7 +147,7 @@ void UART4_IRQHandler(void)
 void sonar_filter()
 {
 	/* no data for long time */
-	if (dt > 0.25f) // more than 2 values lost
+	if (dt > 0.25) // more than 2 values lost
 	{
 		v_pred = 0;
 	}
@@ -165,7 +155,7 @@ void sonar_filter()
 	x_pred = x_post + dt * v_pred;
 	v_pred = v_post;
 
-	float x_new = sonar_mode;
+	float x_new = ((float) valid_data) / 1000.0f;
 	sonar_raw = x_new;
 	x_post = x_pred + global_data.param[PARAM_SONAR_KALMAN_L1] * (x_new - x_pred);
 	v_post = v_pred + global_data.param[PARAM_SONAR_KALMAN_L2] * (x_new - x_pred);
@@ -179,24 +169,18 @@ void sonar_filter()
   * @param  sonar_value_filtered Filtered return value
   * @param  sonar_value_raw Raw return value
   */
-bool sonar_read(float* sonar_value_filtered, float* sonar_value_raw)
+void sonar_read(float* sonar_value_filtered, float* sonar_value_raw)
 {
 	/* getting new data with only around 10Hz */
-	if (new_value) {
+	if(new_value) {
 		sonar_filter();
 		new_value = 0;
-		sonar_measure_time = get_boot_time_us();
-	}
-
-	/* catch post-filter out of band values */
-	if (x_post < SONAR_MIN || x_post > SONAR_MAX) {
-		sonar_valid = false;
+        sonar_measure_time = get_boot_time_ms();
 	}
 
 	*sonar_value_filtered = x_post;
 	*sonar_value_raw = sonar_raw;
 
-	return sonar_valid;
 }
 
 /**

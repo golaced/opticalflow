@@ -35,9 +35,6 @@
 #include <mavlink.h>
 #include "settings.h"
 
-enum global_param_id_t global_param_id;
-struct global_struct global_data;
-
 extern uint8_t debug_int_message_buffer(const char* string, int32_t num);
 
 /**
@@ -72,10 +69,6 @@ void global_data_reset_param_defaults(void){
 	global_data.param[PARAM_SYSTEM_SEND_STATE] = 1;
 	strcpy(global_data.param_name[PARAM_SYSTEM_SEND_STATE], "SYS_SEND_STATE");
 	global_data.param_access[PARAM_SYSTEM_SEND_STATE] = READ_WRITE;
-
-	global_data.param[PARAM_SYSTEM_SEND_LPOS] = 0;
-	strcpy(global_data.param_name[PARAM_SYSTEM_SEND_LPOS], "SYS_SEND_LPOS");
-	global_data.param_access[PARAM_SYSTEM_SEND_LPOS] = READ_WRITE;
 
 	global_data.param[PARAM_SENSOR_POSITION] = 0; // BOTTOM
 	strcpy(global_data.param_name[PARAM_SENSOR_POSITION], "POSITION");
@@ -183,7 +176,7 @@ void global_data_reset_param_defaults(void){
 	global_data.param_access[PARAM_BOTTOM_FLOW_HIST_FILTER] = READ_WRITE;
 
 //	global_data.param[PARAM_BOTTOM_FLOW_GYRO_COMPENSATION] = 0;
-	global_data.param[PARAM_BOTTOM_FLOW_GYRO_COMPENSATION] = 0;
+	global_data.param[PARAM_BOTTOM_FLOW_GYRO_COMPENSATION] = 1;
 	strcpy(global_data.param_name[PARAM_BOTTOM_FLOW_GYRO_COMPENSATION], "BFLOW_GYRO_COM");
 	global_data.param_access[PARAM_BOTTOM_FLOW_GYRO_COMPENSATION] = READ_WRITE;
 
@@ -194,10 +187,6 @@ void global_data_reset_param_defaults(void){
 	global_data.param[PARAM_BOTTOM_FLOW_WEIGHT_NEW] = 0.3f;
 	strcpy(global_data.param_name[PARAM_BOTTOM_FLOW_WEIGHT_NEW], "BFLOW_W_NEW");
 	global_data.param_access[PARAM_BOTTOM_FLOW_WEIGHT_NEW] = READ_WRITE;
-
-	global_data.param[PARAM_BOTTOM_FLOW_SERIAL_THROTTLE_FACTOR] = 10.0f;
-	strcpy(global_data.param_name[PARAM_BOTTOM_FLOW_SERIAL_THROTTLE_FACTOR], "BFLOW_THROTT");
-	global_data.param_access[PARAM_BOTTOM_FLOW_SERIAL_THROTTLE_FACTOR] = READ_WRITE;
 
 	global_data.param[DEBUG_VARIABLE] = 1;
 	strcpy(global_data.param_name[DEBUG_VARIABLE], "DEBUG");

@@ -44,21 +44,6 @@
 #define TXBUFFERSIZE   	(64*64) // 4 KByte
 #define RXBUFFERSIZE   	(64*64)
 
-/* prototypes */
-uint8_t usart2_tx_ringbuffer_push(const uint8_t* ch, uint8_t len);
-uint8_t usart3_tx_ringbuffer_push(const uint8_t* ch, uint8_t len);
-int usart2_char_available(void);
-int usart3_char_available(void);
-uint8_t usart2_rx_ringbuffer_pop(void);
-uint8_t usart3_rx_ringbuffer_pop(void);
-uint8_t usart2_rx_ringbuffer_push_from_usart(void);
-uint8_t usart3_rx_ringbuffer_push_from_usart(void);
-uint8_t usart2_tx_ringbuffer_pop_to_usart(void);
-uint8_t usart3_tx_ringbuffer_pop_to_usart(void);
-void USART2_IRQHandler(void);
-void USART3_IRQHandler(void);
-void usart_init(void);
-
 /* fill output buffers with some asciis to start with */
 uint8_t usart2_tx_buffer[TXBUFFERSIZE] = "\n\r    ____ _  ____ __  ________    ____ _       __\n\r   / __ \\ |/ / // / / ____/ /   / __ \\ |     / /\n\r  / /_/ /   / // /_/ /_  / /   / / / / | /| / / \n\r / ____/   /__  __/ __/ / /___/ /_/ /| |/ |/ /  \n\r/_/   /_/|_| /_/ /_/   /_____/\\____/ |__/|__/   \n\r                                                \n\r";
 uint8_t usart2_rx_buffer[RXBUFFERSIZE] = "";
@@ -77,7 +62,7 @@ int usart3_rx_counter_write = 0;
 /**
   * @brief  Push one byte to ringbuffer of USART2
   */
-uint8_t usart2_tx_ringbuffer_push(const uint8_t* ch, uint8_t len)
+uint8_t usart2_tx_ringbuffer_push(uint8_t* ch, uint8_t len)
 {
 	USART_ITConfig(USART2, USART_IT_TXE, DISABLE);
 
@@ -102,7 +87,7 @@ uint8_t usart2_tx_ringbuffer_push(const uint8_t* ch, uint8_t len)
 /**
   * @brief  Push one byte to ringbuffer of USART3
   */
-uint8_t usart3_tx_ringbuffer_push(const uint8_t* ch, uint8_t len)
+uint8_t usart3_tx_ringbuffer_push(uint8_t* ch, uint8_t len)
 {
 	USART_ITConfig(USART3, USART_IT_TXE, DISABLE);
 
@@ -127,7 +112,7 @@ uint8_t usart3_tx_ringbuffer_push(const uint8_t* ch, uint8_t len)
 /**
   * @brief  Check character availability USART2
   */
-int usart2_char_available(void)
+int usart2_char_available()
 {
 	return (usart2_rx_counter_read != usart2_rx_counter_write);
 }
@@ -135,7 +120,7 @@ int usart2_char_available(void)
 /**
   * @brief  Check character availability USART3
   */
-int usart3_char_available(void)
+int usart3_char_available()
 {
 	return (usart3_rx_counter_read != usart3_rx_counter_write);
 }
@@ -143,7 +128,7 @@ int usart3_char_available(void)
 /**
   * @brief  Pop one byte from ringbuffer of USART2
   */
-uint8_t usart2_rx_ringbuffer_pop(void)
+uint8_t usart2_rx_ringbuffer_pop()
 {
 	USART_ITConfig(USART2, USART_IT_RXNE, DISABLE);
 
@@ -157,7 +142,7 @@ uint8_t usart2_rx_ringbuffer_pop(void)
 /**
   * @brief  Pop one byte from ringbuffer of USART3
   */
-uint8_t usart3_rx_ringbuffer_pop(void)
+uint8_t usart3_rx_ringbuffer_pop()
 {
 	USART_ITConfig(USART3, USART_IT_RXNE, DISABLE);
 
@@ -171,7 +156,7 @@ uint8_t usart3_rx_ringbuffer_pop(void)
 /**
   * @brief  Copy from USART2 to ringbuffer
   */
-uint8_t usart2_rx_ringbuffer_push_from_usart(void)
+uint8_t usart2_rx_ringbuffer_push_from_usart()
 {
 	usart2_rx_buffer[usart2_rx_counter_write] = USART_ReceiveData(USART2);
 	int temp = (usart2_rx_counter_write + 1) % TXBUFFERSIZE;
@@ -188,7 +173,7 @@ uint8_t usart2_rx_ringbuffer_push_from_usart(void)
 /**
   * @brief  Copy from USART3 to ringbuffer
   */
-uint8_t usart3_rx_ringbuffer_push_from_usart(void)
+uint8_t usart3_rx_ringbuffer_push_from_usart()
 {
 	//USART_ITConfig(USART3, USART_IT_TXE, DISABLE);
 	usart3_rx_buffer[usart3_rx_counter_write] = USART_ReceiveData(USART3);
@@ -206,7 +191,7 @@ uint8_t usart3_rx_ringbuffer_push_from_usart(void)
 /**
   * @brief  Copy from ringbuffer to USART2
   */
-uint8_t usart2_tx_ringbuffer_pop_to_usart(void)
+uint8_t usart2_tx_ringbuffer_pop_to_usart()
 {
 	if (usart2_tx_counter_read != usart2_tx_counter_write)
 	{
@@ -220,7 +205,7 @@ uint8_t usart2_tx_ringbuffer_pop_to_usart(void)
 /**
   * @brief  Copy from ringbuffer to USART3
   */
-uint8_t usart3_tx_ringbuffer_pop_to_usart(void)
+uint8_t usart3_tx_ringbuffer_pop_to_usart()
 {
 	if (usart3_tx_counter_read != usart3_tx_counter_write)
 	{
@@ -288,7 +273,7 @@ void USART3_IRQHandler(void)
 /**
   * @brief  Configures USART2 and USART3 for communication
   */
-void usart_init(void)
+void usart_init()
 {
 	/* Configures the nested vectored interrupt controller */
 	NVIC_InitTypeDef NVIC_InitStructure;

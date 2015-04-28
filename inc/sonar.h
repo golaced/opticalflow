@@ -35,7 +35,6 @@
 #define SONAR_H_
 
 #include <stdint.h>
-#include <stdbool.h>
 #include "settings.h"
 
 /**
@@ -55,19 +54,17 @@ void sonar_trigger(void);
 
 /**
   * @brief  Read out newest sonar data
-  *
-  * @return true if valid measurement values were obtained, false else
   */
-bool sonar_read(float* sonar_value_filtered, float* sonar_value_raw);
+void sonar_read(float* sonar_value_filtered, float* sonar_value_raw);
 
 /**
   * @brief Get the timestamp of the new sonar value when available to the main code
   */
-uint32_t get_sonar_measure_time(void);
+uint32_t get_sonar_measure_time();
 
 /**
   * @brief Get the timestamp of the new sonar value when the interrupt is triggered
   */
-uint32_t get_sonar_measure_time_interrupt(void);
+uint32_t get_sonar_measure_time_interrupt();
 
 #endif /* SONAR_H_ */
