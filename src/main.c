@@ -405,7 +405,8 @@ int main(void)
 			dma_copy_image_buffers(&current_image, &previous_image, image_size, 1);
 
 			/* compute optical flow */
-			qual = compute_flow(previous_image, current_image, x_rate, y_rate, z_rate, &pixel_flow_x, &pixel_flow_y);
+//			qual = compute_flow(previous_image, current_image, x_rate, y_rate, z_rate, &pixel_flow_x, &pixel_flow_y);
+			qual = compute_klt(previous_image, current_image, x_rate, y_rate, z_rate, &pixel_flow_x, &pixel_flow_y);
 
 			/*
 			 * real point P (X,Y,Z), image plane projection p (x,y,z), focal-length f, distance-to-scene Z
@@ -414,6 +415,29 @@ int main(void)
 			 */
 			float flow_compx = pixel_flow_x / focal_length_px / (get_time_between_images() / 1000000.0f);
 			float flow_compy = pixel_flow_y / focal_length_px / (get_time_between_images() / 1000000.0f);
+
+
+      /*
+       * gyro compensation
+       *
+       * TODO: do not compensate more than the valid flow value (+/- 4.5 pixels)
+       *
+       * -y_rate gives x flow
+       * x_rates gives y_flow
+       */
+      if (global_data.param[PARAM_BOTTOM_FLOW_GYRO_COMPENSATION])
+      {
+        if(fabsf(y_rate) > global_data.param[PARAM_GYRO_COMPENSATION_THRESHOLD])
+        {
+          flow_compx = flow_compx - y_rate;
+        }
+
+        if(fabsf(x_rate) > global_data.param[PARAM_GYRO_COMPENSATION_THRESHOLD])
+        {
+          flow_compy = flow_compy + x_rate;
+        }
+      }
+
 
 			/* integrate velocity and output values only if distance is valid */
 			if (distance_valid)
@@ -648,9 +672,9 @@ int main(void)
 			uint16_t image_width_send;
 			uint16_t image_height_send;
 
-			image_size_send = image_size;
 			image_width_send = global_data.param[PARAM_IMAGE_WIDTH];
-			image_height_send = global_data.param[PARAM_IMAGE_HEIGHT];
+			image_height_send = global_data.param[PARAM_IMAGE_HEIGHT];//+global_data.param[PARAM_IMAGE_HEIGHT]/2;
+			image_size_send = image_width_send*image_height_send;
 
 			mavlink_msg_data_transmission_handshake_send(
 					MAVLINK_COMM_2,
