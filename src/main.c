@@ -89,7 +89,7 @@ volatile uint32_t boot_time_ms = 0;
 #define TIMER_PARAMS		6
 #define TIMER_IMAGE			7
 #define LED_TIMER_COUNT		500
-#define SONAR_TIMER_COUNT 	100
+#define SONAR_TIMER_COUNT 	500
 #define SYSTEM_STATE_COUNT	1000
 #define PARAMS_COUNT		100
 static volatile unsigned timer[NTIMERS];
@@ -99,6 +99,7 @@ bool send_system_state_now = true;
 bool receive_now = true;
 bool send_params_now = true;
 bool send_image_now = true;
+bool read_sonar_now = true;
 
 /**
   * @brief  Increment boot_time variable and decrement timer array.
@@ -123,7 +124,8 @@ void timer_update(void)
 
 	if (timer[TIMER_SONAR] == 0)
 	{
-		sonar_trigger();
+		//sonar_trigger();
+		read_sonar_now = true;
 		timer[TIMER_SONAR] = SONAR_TIMER_COUNT;
 	}
 
@@ -256,6 +258,22 @@ int main(void)
 	int valid_frame_count = 0;
 	int pixel_flow_count = 0;
 
+
+    RCC_ClocksTypeDef RCC_Clocks;
+	RCC_GetClocksFreq(&RCC_Clocks);
+
+	while(1)
+	{
+        print("SYSCLK_Frequency = %ld \r\n", RCC_Clocks.SYSCLK_Frequency);
+		delay(1000);
+		print("HCLK_Frequency = %ld \r\n", RCC_Clocks.HCLK_Frequency);
+		delay(1000);
+		print("PCLK1_Frequency = %ld \r\n", RCC_Clocks.PCLK1_Frequency);
+		delay(1000);
+		print("PCLK2_Frequency = %ld \r\n", RCC_Clocks.PCLK2_Frequency);
+		delay(1000);
+	}
+
 	/* main loop */
 	while (1)
 	{
@@ -329,7 +347,11 @@ int main(void)
 //		y_rate = y_rate_raw_sensor;
 
 		/* get sonar data */
-		sonar_read(&sonar_distance_filtered, &sonar_distance_raw);
+		if(read_sonar_now)
+		{
+			sonar_read(&sonar_distance_filtered, &sonar_distance_raw);
+			read_sonar_now = false;
+		}
 
 		/* compute optical flow */
 		if(global_data.param[PARAM_SENSOR_POSITION] == BOTTOM)

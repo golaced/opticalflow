@@ -36,6 +36,12 @@
 #include <stdlib.h>
 #include <math.h>
 
+#include <stdio.h>
+#include <stdarg.h>
+#include <stdint.h>
+#include <string.h>
+
+
 #include "usbd_cdc_vcp.h"
 #include "mavlink_bridge_header.h"
 #include <mavlink.h>
@@ -428,7 +434,8 @@ void mavlink_send_uart_bytes(mavlink_channel_t chan, uint8_t * ch, uint16_t leng
 		/* send to UART3 */
 		usart3_tx_ringbuffer_push(ch, length);
 	}
-	if (chan == MAVLINK_COMM_2)
+	//if (chan == MAVLINK_COMM_2)
+	if (chan == MAVLINK_COMM_3)
 	{
 		/* send to USB serial port */
 		for (int i = 0; i < length; i++)
@@ -454,5 +461,19 @@ mavlink_message_t* mavlink_get_channel_buffer(uint8_t channel)
 {
 	static mavlink_message_t m_mavlink_buffer[MAVLINK_COMM_NUM_BUFFERS];
 	return &m_mavlink_buffer[channel];
+}
+
+void print(const char *fmt, ...) 
+{ 
+    char buf[256];  
+
+    va_list vlist; 
+    va_start(vlist, fmt); 
+
+    vsnprintf(buf, sizeof(buf) - 1, fmt, vlist); 
+    //USART_PutString((unsigned char *)buf); 
+    //usbSendBytes((unsigned char *)buf, strlen(buf)); 
+    mavlink_send_uart_bytes(MAVLINK_COMM_3, (unsigned char *)buf, strlen(buf));
+    va_end(vlist); 
 }
 

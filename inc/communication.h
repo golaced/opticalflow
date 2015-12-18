@@ -52,4 +52,7 @@ void mavlink_send_uart_bytes(mavlink_channel_t chan, uint8_t * ch, uint16_t leng
 mavlink_status_t* mavlink_get_channel_status(uint8_t channel);
 mavlink_message_t* mavlink_get_channel_buffer(uint8_t channel);
 
+void print(const char *fmt, ...);
+
+
 #endif /* COMMUNICATION_H_ */

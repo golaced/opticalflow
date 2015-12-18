@@ -57,6 +57,8 @@ void sonar_trigger(void);
   */
 void sonar_read(float* sonar_value_filtered, float* sonar_value_raw);
 
+void usDelay(u32 ustime);
+
 /**
   * @brief Get the timestamp of the new sonar value when available to the main code
   */
