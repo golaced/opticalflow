@@ -47,11 +47,14 @@
 #include <mavlink.h>
 #include "settings.h"
 #include "usart.h"
-#include "mt9v034.h"
-#include "dcmi.h"
+//#include "mt9v034.h"
+//#include "dcmi.h"
 #include "gyro.h"
 #include "debug.h"
 #include "communication.h"
+
+#include "ov7251.h"
+#include "dcmi_ov7251.h"
 
 extern uint32_t get_boot_time_ms();
 extern void buffer_reset();
@@ -245,24 +248,26 @@ void handle_mavlink_message(mavlink_channel_t chan,
 							if(i == PARAM_SENSOR_POSITION)
 							{
 								set_sensor_position_settings((uint8_t) set.param_value);
-								mt9v034_context_configuration();
-								dma_reconfigure();
+								//mt9v034_context_configuration();
+								ov7251_context_configuration();
+								ov7251_dma_reconfigure();
 								buffer_reset();
 							}
 
 							/* handle low light mode and noise correction */
 							else if(i == PARAM_IMAGE_LOW_LIGHT || i == PARAM_IMAGE_ROW_NOISE_CORR|| i == PARAM_IMAGE_TEST_PATTERN)
 							{
-								mt9v034_context_configuration();
-								dma_reconfigure();
+								//mt9v034_context_configuration();
+								ov7251_context_configuration();
+								ov7251_dma_reconfigure();
 								buffer_reset();
 							}
 
 							/* handle calibration on/off */
 							else if(i == PARAM_VIDEO_ONLY)
 							{
-								mt9v034_set_context();
-								dma_reconfigure();
+								//mt9v034_set_context();
+								ov7251_dma_reconfigure();
 								buffer_reset();
 
 								if(global_data.param[PARAM_VIDEO_ONLY])

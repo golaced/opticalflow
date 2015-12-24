@@ -31,56 +31,49 @@
  *
  ****************************************************************************/
 
-#ifndef LED_H_
-#define LED_H_
+#ifndef DCMI_OV7251_H_
+#define DCMI_OV7251_H_
 
-#include "stm32f4xx_conf.h"
-#include "stm32f4xx.h"
+#include <stdint.h>
+#include "ov7251.h"
+#include "stmipid02.h"
 
-typedef enum
-{
-	LED_ACT = 0,	// Blue
-	LED_COM = 1, 	// Amber
-	LED_ERR = 2,	// Red
-} Led_TypeDef;
+#define OV7251_DCMI_DR_ADDRESS       0x50050028
 
+/**
+ * @brief Copy image to fast RAM address
+ */
+void ov7251_dma_copy_image_buffers(uint8_t ** current_image, uint8_t ** previous_image, uint16_t buffer_size, uint8_t image_step);
 
-#define LEDn						3
-/* PX4FLOW
-#define LED_ACTIVITY_PIN			GPIO_Pin_3
-#define LED_ACTIVITY_GPIO_PORT		GPIOE
-#define LED_ACTIVITY_GPIO_CLK		RCC_AHB1Periph_GPIOE
+/**
+ * @brief Send calibration image with MAVLINK over USB
+ */
+void send_calibration_image(uint8_t ** image_buffer_fast_1, uint8_t ** image_buffer_fast_2);
 
-#define LED_BOOTLOADER_PIN			GPIO_Pin_2
-#define LED_BOOTLOADER_GPIO_PORT	GPIOE
-#define LED_BOOTLOADER_GPIO_CLK		RCC_AHB1Periph_GPIOE
+/**
+ * @brief Initialize DCMI DMA and enable image capturing
+ */
+void enable_ov7251_image_capture(void);
 
-#define LED_TEST_PIN				GPIO_Pin_7
-#define LED_TEST_GPIO_PORT			GPIOE
-#define LED_TEST_GPIO_CLK			RCC_AHB1Periph_GPIOE
-*/
+/* Init Functions */
+void stmipid02_ov7251_clock_init(void);
+void stmipid02_ov7251_hw_init(void);
+void ov7251_dcmi_dma_init(uint16_t buffer_size);
+void ov7251_dcmi_it_init(void);
+void ov7251_dma_it_init(void);
 
-/* IAC Optical Flow */
-// PE9 RED 
-// PE11 GREEN 
-// PE13 BLUE
-#define LED_ACTIVITY_PIN			GPIO_Pin_13
-#define LED_ACTIVITY_GPIO_PORT		GPIOE
-#define LED_ACTIVITY_GPIO_CLK		RCC_AHB1Periph_GPIOE
+/* Interrupt Handlers */
+void DCMI_IRQHandler(void);
+void DMA2_Stream1_IRQHandler(void);
 
-#define LED_BOOTLOADER_PIN			GPIO_Pin_11
-#define LED_BOOTLOADER_GPIO_PORT	GPIOE
-#define LED_BOOTLOADER_GPIO_CLK		RCC_AHB1Periph_GPIOE
+void ov7251_dcmi_dma_enable(void);
+void ov7251_dcmi_dma_disable(void);
+void ov7251_dma_reconfigure(void);
+void dcmi_restart_calibration_routine(void);
+void dma_swap_buffers(void);
 
-#define LED_TEST_PIN				GPIO_Pin_9
-#define LED_TEST_GPIO_PORT			GPIOE
-#define LED_TEST_GPIO_CLK			RCC_AHB1Periph_GPIOE
+uint32_t ov7251_get_time_between_images(void);
+uint32_t ov7251_get_frame_counter(void);
+void reset_frame_counter(void);
 
-
-void LEDInit(Led_TypeDef Led);
-void LEDOn(Led_TypeDef Led);
-void LEDOff(Led_TypeDef Led);
-void LEDToggle(Led_TypeDef Led);
-
-
-#endif /* LED_H_ */
+#endif /* DCMI_OV7251_H_ */

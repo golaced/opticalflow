@@ -49,8 +49,6 @@
 #include "utils.h"
 #include "led.h"
 #include "flow.h"
-#include "dcmi.h"
-#include "mt9v034.h"
 #include "gyro.h"
 #include "i2c.h"
 #include "usart.h"
@@ -63,6 +61,10 @@
 #include "usbd_cdc_vcp.h"
 #include "main.h"
 
+#include "dcmi_ov7251.h"
+#include "stmipid02.h"
+#include "ov7251.h"
+
 /* coprocessor control register (fpu) */
 #ifndef SCB_CPACR
 #define SCB_CPACR (*((uint32_t*) (((0xE000E000UL) + 0x0D00UL) + 0x088)))
@@ -72,11 +74,16 @@ __ALIGN_BEGIN USB_OTG_CORE_HANDLE  USB_OTG_dev __ALIGN_END;
 
 /* fast image buffers for calculations */
 uint8_t* image_buffer_8bit_1 = ((uint8_t*) 0x10000000);
-uint8_t* image_buffer_8bit_2 = ((uint8_t*) ( 0x10000000 | FULL_IMAGE_SIZE ));
+uint8_t* image_buffer_8bit_2 = ((uint8_t*) ( 0x10000000 | OV7251_FULL_IMAGE_SIZE ));
 uint8_t buffer_reset_needed;
 
 /* boot time in milli seconds */
 volatile uint32_t boot_time_ms = 0;
+
+//chris
+//#define DEBUG_MT9V034   1
+#define DEBUG_STMIPID02 1
+//#define DEBUG_OV7251    1
 
 /* timer constants */
 #define NTIMERS         	8
@@ -89,7 +96,7 @@ volatile uint32_t boot_time_ms = 0;
 #define TIMER_PARAMS		6
 #define TIMER_IMAGE			7
 #define LED_TIMER_COUNT		500
-#define SONAR_TIMER_COUNT 	500
+#define SONAR_TIMER_COUNT 	100
 #define SYSTEM_STATE_COUNT	1000
 #define PARAMS_COUNT		100
 static volatile unsigned timer[NTIMERS];
@@ -99,7 +106,6 @@ bool send_system_state_now = true;
 bool receive_now = true;
 bool send_params_now = true;
 bool send_image_now = true;
-bool read_sonar_now = true;
 
 /**
   * @brief  Increment boot_time variable and decrement timer array.
@@ -124,8 +130,7 @@ void timer_update(void)
 
 	if (timer[TIMER_SONAR] == 0)
 	{
-		//sonar_trigger();
-		read_sonar_now = true;
+		sonar_trigger();
 		timer[TIMER_SONAR] = SONAR_TIMER_COUNT;
 	}
 
@@ -207,8 +212,16 @@ int main(void)
 	/* init mavlink */
 	communication_init();
 
+//chris
 	/* enable image capturing */
+#ifdef DEBUG_MT9V034
+	//not compile dcmi.c 
 	enable_image_capture();
+#endif
+
+#ifdef DEBUG_STMIPID02
+	enable_ov7251_image_capture();
+#endif
 
 	/* gyro config */
 	gyro_config();
@@ -258,21 +271,7 @@ int main(void)
 	int valid_frame_count = 0;
 	int pixel_flow_count = 0;
 
-
-    RCC_ClocksTypeDef RCC_Clocks;
-	RCC_GetClocksFreq(&RCC_Clocks);
-
-	while(1)
-	{
-        print("SYSCLK_Frequency = %ld \r\n", RCC_Clocks.SYSCLK_Frequency);
-		delay(1000);
-		print("HCLK_Frequency = %ld \r\n", RCC_Clocks.HCLK_Frequency);
-		delay(1000);
-		print("PCLK1_Frequency = %ld \r\n", RCC_Clocks.PCLK1_Frequency);
-		delay(1000);
-		print("PCLK2_Frequency = %ld \r\n", RCC_Clocks.PCLK2_Frequency);
-		delay(1000);
-	}
+	u16 loop_count = 0;
 
 	/* main loop */
 	while (1)
@@ -291,21 +290,22 @@ int main(void)
 		}
 
 		/* calibration routine */
+		/*
 		if(global_data.param[PARAM_VIDEO_ONLY])
 		{
 			while(global_data.param[PARAM_VIDEO_ONLY])
 			{
 				dcmi_restart_calibration_routine();
 
-				/* waiting for first quarter of image */
+				// waiting for first quarter of image 
 				while(get_frame_counter() < 2){}
 				dma_copy_image_buffers(&current_image, &previous_image, FULL_IMAGE_SIZE, 1);
 
-				/* waiting for second quarter of image */
+				// waiting for second quarter of image 
 				while(get_frame_counter() < 3){}
 				dma_copy_image_buffers(&current_image, &previous_image, FULL_IMAGE_SIZE, 1);
 
-				/* waiting for all image parts */
+				// waiting for all image parts 
 				while(get_frame_counter() < 4){}
 
 				send_calibration_image(&previous_image, &current_image);
@@ -323,6 +323,7 @@ int main(void)
 			dcmi_restart_calibration_routine();
 			LEDOff(LED_COM);
 		}
+		*/
 
 		uint16_t image_size = global_data.param[PARAM_IMAGE_WIDTH] * global_data.param[PARAM_IMAGE_HEIGHT];
 
@@ -338,31 +339,22 @@ int main(void)
 		/* calculate focal_length in pixel */
 		const float focal_length_px = (global_data.param[PARAM_FOCAL_LENGTH_MM]) / (4.0f * 6.0f) * 1000.0f; //original focal lenght: 12mm pixelsize: 6um, binning 4 enabled
 
-		/* debug */
-		float x_rate_pixel = x_rate * (get_time_between_images() / 1000.0f) * focal_length_px;
-		float y_rate_pixel = y_rate * (get_time_between_images() / 1000.0f) * focal_length_px;
-
-		//FIXME for the old sensor PX4FLOW v1.2 uncomment this!!!!
-//		x_rate = x_rate_raw_sensor; // change x and y rates
-//		y_rate = y_rate_raw_sensor;
 
 		/* get sonar data */
-		if(read_sonar_now)
-		{
-			sonar_read(&sonar_distance_filtered, &sonar_distance_raw);
-			read_sonar_now = false;
-		}
+		sonar_read(&sonar_distance_filtered, &sonar_distance_raw);
+
+
 
 		/* compute optical flow */
 		if(global_data.param[PARAM_SENSOR_POSITION] == BOTTOM)
 		{
 			/* copy recent image to faster ram */
-			dma_copy_image_buffers(&current_image, &previous_image, image_size, 1);
+			// not ready for the ov7251
+			//ov7251_dma_copy_image_buffers(&current_image, &previous_image, image_size, 1);
 
 			/* compute optical flow */
-//			qual = compute_flow(previous_image, current_image, x_rate, y_rate, z_rate, &pixel_flow_x, &pixel_flow_y);
 			qual = compute_klt(previous_image, current_image, x_rate, y_rate, z_rate, &pixel_flow_x, &pixel_flow_y);
-
+			
 			if (sonar_distance_filtered > 5.0f || sonar_distance_filtered == 0.0f)
 			{
 				/* distances above 5m are considered invalid */
@@ -379,8 +371,8 @@ int main(void)
 			 * x / f = X / Z
 			 * y / f = Y / Z
 			 */
-			float flow_compx = pixel_flow_x / focal_length_px / (get_time_between_images() / 1000.0f);
-			float flow_compy = pixel_flow_y / focal_length_px / (get_time_between_images() / 1000.0f);
+			float flow_compx = pixel_flow_x / focal_length_px / (ov7251_get_time_between_images() / 1000.0f);
+			float flow_compy = pixel_flow_y / focal_length_px / (ov7251_get_time_between_images() / 1000.0f);
 
 
       /*
@@ -445,6 +437,90 @@ int main(void)
 		}
 
 		counter++;
+
+//chris
+		loop_count++;
+		while( loop_count == 2000){
+			print("\r\n============================= Debug Log =============================\r\n");
+			print("SONAR   distance = %f \r\n", sonar_distance_raw);
+			print("GYRO    x = %f, y = %f, z = %f \r\n",x_rate,y_rate,z_rate);
+
+#ifdef DEBUG_MT9V034
+			//not compile mt9v034.c 
+			uint16_t version = mt9v034_ReadReg16(0x1324);
+			//test the i2c of MT9V034
+			uint16_t i2ctest = 0, i2ctestvalue = 3, i2ctestaddress = 0x1B;
+			print("\r\n--------- i2c test for MT9V034 ---------\r\n");
+			print("MT9V034 chip_version = %x \r\n", version);
+			print("Write value (0) to address [0x1B]\r\n");
+			mt9v034_WriteReg16(i2ctestaddress, 0);
+			delay(3);
+			i2ctest = mt9v034_ReadReg16(i2ctestaddress);
+			print("MT9V034 i2c test, the value of [0x1B] = %x \r\n", i2ctest);
+			print("Write value (3) to address [0x1B]\r\n");
+			mt9v034_WriteReg16(i2ctestaddress, i2ctestvalue);
+			delay(3);
+			i2ctest = mt9v034_ReadReg16(i2ctestaddress);
+			print("MT9V034 i2c test, the value of [0x1B] = %x \r\n", i2ctest);
+			
+			if(i2ctest==i2ctestvalue){
+				print("!!! i2c test for MT9V034 PASS !!! \r\n");
+			}else{
+				print("@@@ i2c test for MT9V034 FAIL @@@ \r\n");
+			}
+#endif
+
+#ifdef DEBUG_STMIPID02
+			//test the i2c of STMIPID02
+			uint8_t i2cread = 0;
+			uint8_t stmipid02value = 1, stmipid02address = 0x14;
+
+			print("\r\n--------- I2C test for STMIPID02 ---------\r\n");
+			print("Write value (0) to address [0x14]\r\n");
+			stmipid02_WriteReg8(stmipid02address, 0);
+			delay(3);
+			i2cread = stmipid02_ReadReg8(stmipid02address);
+			print("STMIPID02 i2c test, the value of [0x14] = %x \r\n", i2cread);
+			print("Write value (1) to address [0x14]\r\n");
+			stmipid02_WriteReg8(stmipid02address, stmipid02value);
+			delay(3);
+			i2cread = stmipid02_ReadReg8(stmipid02address);
+			print("STMIPID02 i2c test, the value of [0x14] = %x \r\n", i2cread);
+			
+			if(i2cread==stmipid02value){
+				print("!!! I2C test for STMIPID02 PASS !!! \r\n");
+			}else{
+				print("@@@ I2C test for STMIPID02 FAIL @@@ \r\n");
+			}
+#endif
+
+#ifdef DEBUG_OV7251
+			//test the i2c of OV7251
+			uint8_t imageread = 0, ov7251value = 2;
+			uint16_t ov7251address = 0x3820;
+
+			print("\r\n--------- I2C test for OV7251 ---------\r\n");
+			print("Write value (0) to address [0x3820]\r\n");
+			ov7251_WriteReg16(ov7251address, 0);
+			delay(3);
+			imageread = ov7251_ReadReg16(ov7251address);
+			print("OV7251 i2c test, the value of [0x3820] = %x \r\n", imageread);
+			print("Write value (2) to address [0x3820]\r\n");
+			ov7251_WriteReg16(ov7251address, ov7251value);
+			delay(3);
+			imageread = ov7251_ReadReg16(ov7251address);
+			print("OV7251 i2c test, the value of [0x3820] = %x \r\n", imageread);
+			
+			if(imageread==ov7251value){
+				print("!!! I2C test for OV7251 PASS !!! \r\n");
+			}else{
+				print("@@@ I2C test for OV7251 FAIL @@@ \r\n");
+			}
+#endif
+
+			print("\r\n\n\n");
+			loop_count = 0;
+		}
 
 		/* TODO for debugging */
 		//mavlink_msg_named_value_float_send(MAVLINK_COMM_2, boot_time_ms, "blabla", blabla);
