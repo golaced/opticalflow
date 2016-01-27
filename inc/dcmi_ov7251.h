@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (C) 2013 PX4 Development Team. All rights reserved.
+ *   Copyright (C) 2015 IAC. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -12,7 +12,7 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 3. Neither the name PX4 nor the names of its contributors may be
+ * 3. Neither the name IAC nor the names of its contributors may be
  *    used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -75,5 +75,7 @@ void dma_swap_buffers(void);
 uint32_t ov7251_get_time_between_images(void);
 uint32_t ov7251_get_frame_counter(void);
 void reset_frame_counter(void);
+
+void print_ov7251_initlog(void);
 
 #endif /* DCMI_OV7251_H_ */

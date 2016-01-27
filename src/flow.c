@@ -41,7 +41,8 @@
 
 #include "mavlink_bridge_header.h"
 #include <mavlink.h>
-#include "dcmi.h"
+//#include "dcmi.h"
+#include "dcmi_ov7251.h"
 #include "debug.h"
 
 #define __INLINE inline

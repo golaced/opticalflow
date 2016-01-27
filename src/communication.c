@@ -439,8 +439,8 @@ void mavlink_send_uart_bytes(mavlink_channel_t chan, uint8_t * ch, uint16_t leng
 		/* send to UART3 */
 		usart3_tx_ringbuffer_push(ch, length);
 	}
-	//if (chan == MAVLINK_COMM_2)
-	if (chan == MAVLINK_COMM_3)
+	if (chan == MAVLINK_COMM_2)  //for QGC mavlink
+	//if (chan == MAVLINK_COMM_3)  //for USB com port debug
 	{
 		/* send to USB serial port */
 		for (int i = 0; i < length; i++)

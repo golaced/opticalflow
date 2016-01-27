@@ -1,16 +1,55 @@
+/****************************************************************************
+ *
+ *   Copyright (C) 2015 IAC Development Team. All rights reserved.
+ *   Author: Chris Hsu <hsu.chris@iac.com.tw>
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ * 3. Neither the name IAC nor the names of its contributors may be
+ *    used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+ * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+ * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ ****************************************************************************/
+
 #include "stm32f4xx_dcmi.h"
 #include "stm32f4xx_dma.h"
 #include "stm32f4xx_rcc.h"
 #include "stm32f4xx_i2c.h"
 #include "stmipid02.h"
 
+extern uint8_t ov7251_debug[8];
+uint8_t i2cread_stmipid02[20];
+//#define READ_STMIPID02 1
+
 /**
   * @brief  Configures the stmipid02 mipi to parallel bridge .
   */
 void stmipid02_context_configuration(void)
 {
+	ov7251_debug[5]=1;
 	// MAIN CAMERA CLOCK LANE 1 (CLKP1, CLKN1)
-	stmipid02_WriteReg8(CLK_LANE_REG1, 0x25); // Enable Clock Lane 1 (CLKP1, CLKN1) and UI programmation: 0x25 between 222 and 200Mhz
+	stmipid02_WriteReg8(CLK_LANE_REG1, 0x15); // Enable Clock Lane 1 (CLKP1, CLKN1) and UI programmation:0x15 between 400 and 344Mhz, 0x25 between 222 and 200Mhz	
 	stmipid02_WriteReg8(CLK_LANE_REG3, 0x02); // 0x1c CCP mode , 0x02 CSI mode on main camera
 	
 	// MAIN CAMERA DATA LANE 1.1 (DATA1P1, DATA1N1)
@@ -38,19 +77,38 @@ void stmipid02_context_configuration(void)
 	stmipid02_WriteReg8(DATA_ID_RREG_EMB, 0x2B);
 	// Data type of embedded data: 0x1E YUV422 8-bit, 0x1F YUV422 10-bit, 0x22 RGB565, 0x2A RAW8,
 	//0x2B RAW10, 0x2C RAW12, for other mode please refer to CSI specifications
-	stmipid02_WriteReg8(DATA_SELECTION_CTRL, 0x00);
+	stmipid02_WriteReg8(DATA_SELECTION_CTRL, 0x0C);
 	// 0X00 Data type and pixel width extracted from data stream, 0x04 Data type programmed, pixel width
 	// extracted from data type, 0x0c Data type and pixel width programmed
 	
 	// PIXEL WIDTH and decompression ON/OFF
-	stmipid02_WriteReg8(PIX_WIDTH_CTRL, 0x08);
+	stmipid02_WriteReg8(PIX_WIDTH_CTRL, 0x0A);
 	// Image data not compressed: 0x06 for Raw6, 0x07 for Raw7, 0x08 for 8 bits, 0x0A for 10bits, 0x0c for
 	// Raw12. Image data compressed:0x1a for 12-10, 0x18 for 12-8 and 10-8, 0x17 for 12-7 and 10-7, 0x16 for
 	// 12-6 and 10-6
-	stmipid02_WriteReg8(PIX_WIDTH_CTRL_EMB, 0x08);
+	stmipid02_WriteReg8(PIX_WIDTH_CTRL_EMB, 0x0A);
 	// Embedded data not compressed: 0x06 for Raw6, 0x07 for Raw7, 0x08 for 8 bits, 0x0A for 10bits, 0x0c
 	// for Raw12. Embedded data compressed:0x1a for 12-10, 0x18 for 12-8 and 10-8, 0x17 for 12-7 and 10-7,
 	// 0x16 for 12-6 and 10-6
+
+#ifdef READ_STMIPID02
+	i2cread_stmipid02[0] = stmipid02_ReadReg8(CLK_LANE_REG1);
+	i2cread_stmipid02[1] = stmipid02_ReadReg8(CLK_LANE_REG3);
+	i2cread_stmipid02[2] = stmipid02_ReadReg8(DATA_LANE0_REG1);
+	i2cread_stmipid02[3] = stmipid02_ReadReg8(DATA_LANE0_REG2);
+	i2cread_stmipid02[4] = stmipid02_ReadReg8(DATA_LANE1_REG1);
+	i2cread_stmipid02[5] = stmipid02_ReadReg8(CLK_LANE_REG1_C2);
+	i2cread_stmipid02[6] = stmipid02_ReadReg8(DATA_LANE3_REG1);
+	i2cread_stmipid02[7] = stmipid02_ReadReg8(MODE_REG1);
+	i2cread_stmipid02[8] = stmipid02_ReadReg8(MODE_REG2);
+	i2cread_stmipid02[9] = stmipid02_ReadReg8(MODE_REG3);
+	i2cread_stmipid02[10] = stmipid02_ReadReg8(DATA_ID_RREG);
+	i2cread_stmipid02[11] = stmipid02_ReadReg8(DATA_ID_RREG_EMB);
+	i2cread_stmipid02[12] = stmipid02_ReadReg8(DATA_SELECTION_CTRL);
+	i2cread_stmipid02[13] = stmipid02_ReadReg8(PIX_WIDTH_CTRL);
+	i2cread_stmipid02[14] = stmipid02_ReadReg8(PIX_WIDTH_CTRL_EMB);
+#endif
+
 }
 
 /**
