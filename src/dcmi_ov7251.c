@@ -67,10 +67,10 @@ volatile uint8_t calibration_mem1;
 
 /*ov7251 image buffers */
 
-uint8_t dcmi_image_buffer_10bit_1[OV7251_FULL_IMAGE_SIZE];
-uint8_t dcmi_image_buffer_10bit_2[OV7251_FULL_IMAGE_SIZE];
-uint8_t dcmi_image_buffer_10bit_3[OV7251_FULL_IMAGE_SIZE];
 
+uint16_t dcmi_image_buffer_10bit_1[OV7251_FULL_IMAGE_SIZE];
+uint16_t dcmi_image_buffer_10bit_2[OV7251_FULL_IMAGE_SIZE];
+uint16_t dcmi_image_buffer_10bit_3[OV7251_FULL_IMAGE_SIZE];
 
 uint32_t time_between_images;
 
@@ -79,6 +79,8 @@ extern uint32_t get_boot_time_ms(void);
 extern void delay(unsigned msec);
 
 uint8_t ov7251_debug[9]={0};
+uint32_t dma_it = 0;
+uint32_t dcmi_it = 0;
 
 
 /**
@@ -126,6 +128,8 @@ void dcmi_restart_calibration_routine(void)
  */
 void DCMI_IRQHandler(void)
 {
+	dcmi_it ++;
+
 	if (DCMI_GetITStatus(DCMI_IT_FRAME) != RESET)
 	{
 		DCMI_ClearITPendingBit(DCMI_IT_FRAME);
@@ -139,6 +143,8 @@ void DCMI_IRQHandler(void)
  */
 void DMA2_Stream1_IRQHandler(void)
 {
+	dma_it ++ ;
+
 	/* transfer completed */
 	if (DMA_GetITStatus(DMA2_Stream1, DMA_IT_TCIF1) != RESET)
 	{
@@ -178,11 +184,11 @@ void DMA2_Stream1_IRQHandler(void)
  */
 void dma_swap_buffers(void)
 {
-	ov7251_debug[7]=1;
+	//ov7251_debug[7]=1;
 	/* check which buffer is in use */
 	if (DMA_GetCurrentMemoryTarget(DMA2_Stream1))
 	{
-		ov7251_debug[7]=dcmi_image_buffer_unused;
+		//ov7251_debug[7]=dcmi_image_buffer_unused;
 		/* swap dcmi image buffer */
 		if (dcmi_image_buffer_unused == 1)
 			DMA_MemoryTargetConfig(DMA2_Stream1, (uint32_t) dcmi_image_buffer_10bit_1, DMA_Memory_0);
@@ -197,7 +203,7 @@ void dma_swap_buffers(void)
 	}
 	else
 	{
-		ov7251_debug[7]=dcmi_image_buffer_unused;
+		//ov7251_debug[7]=dcmi_image_buffer_unused;
 		/* swap dcmi image buffer */
 		if (dcmi_image_buffer_unused == 1)
 			DMA_MemoryTargetConfig(DMA2_Stream1, (uint32_t) dcmi_image_buffer_10bit_1, DMA_Memory_1);
@@ -260,28 +266,25 @@ void ov7251_dma_copy_image_buffers(uint8_t ** current_image, uint8_t ** previous
 	/* time between images */
 	time_between_images = time_between_next_images;
 
-	ov7251_debug[8]=dcmi_image_buffer_unused;
+	//ov7251_debug[8]=dcmi_image_buffer_unused;
 
 	/* copy image */
 	if (dcmi_image_buffer_unused == 1)
 	{
 		for (uint16_t pixel = 0; pixel < image_size; pixel++){
-			(*current_image)[pixel] = (uint8_t) (dcmi_image_buffer_10bit_1[pixel]) ;
-			//(*current_image)[pixel] = (uint8_t)( (dcmi_image_buffer_10bit_1[pixel]>>2) & 0xFF);  //pixel source is 8 bit?		
+			(*current_image)[pixel] = (uint8_t) ((dcmi_image_buffer_10bit_1[pixel]>>2) &0xFF);	
 		}
 	}
 	else if (dcmi_image_buffer_unused == 2)
 	{
 		for (uint16_t pixel = 0; pixel < image_size; pixel++){
-			(*current_image)[pixel] = (uint8_t) (dcmi_image_buffer_10bit_2[pixel]) ;  
-			//(*current_image)[pixel] = (uint8_t)( (dcmi_image_buffer_10bit_2[pixel]>>2) & 0xFF);  //pixel source is 8 bit?
+			(*current_image)[pixel] = (uint8_t) ((dcmi_image_buffer_10bit_2[pixel]>>2) &0xFF);  
 		}
 	}
 	else
 	{
 		for (uint16_t pixel = 0; pixel < image_size; pixel++){
-			(*current_image)[pixel] = (uint8_t) (dcmi_image_buffer_10bit_3[pixel]) ; 
-			//(*current_image)[pixel] = (uint8_t)( (dcmi_image_buffer_10bit_3[pixel]>>2) & 0xFF);  //pixel source is 8 bit?
+			(*current_image)[pixel] = (uint8_t) ((dcmi_image_buffer_10bit_3[pixel]>>2) &0xFF); 
 		}
 	}
 	
@@ -537,7 +540,6 @@ void stmipid02_ov7251_hw_init(void)
 	GPIO_PinAFConfig(GPIOA, GPIO_PinSource4, GPIO_AF_DCMI); //DCMI_HSYNC
 	GPIO_PinAFConfig(GPIOA, GPIO_PinSource6, GPIO_AF_DCMI); //DCMI_PIXCL
 
-	//GPIO_PinAFConfig(GPIOB, GPIO_PinSource5, GPIO_AF_DCMI); //DCMI_D10  ==>??
 	GPIO_PinAFConfig(GPIOB, GPIO_PinSource6, GPIO_AF_DCMI); //DCMI_D5
 	GPIO_PinAFConfig(GPIOB, GPIO_PinSource7, GPIO_AF_DCMI); //DCMI_VSYNC
 
@@ -545,8 +547,6 @@ void stmipid02_ov7251_hw_init(void)
 	GPIO_PinAFConfig(GPIOC, GPIO_PinSource7, GPIO_AF_DCMI); //DCMI_D1
 	GPIO_PinAFConfig(GPIOC, GPIO_PinSource10, GPIO_AF_DCMI); //DCMI_D8
 	GPIO_PinAFConfig(GPIOC, GPIO_PinSource12, GPIO_AF_DCMI); //DCMI_D9
-	
-	//GPIO_PinAFConfig(GPIOD, GPIO_PinSource2, GPIO_AF_DCMI); //DCMI_D11  ==>??
 
 	GPIO_PinAFConfig(GPIOE, GPIO_PinSource0, GPIO_AF_DCMI); //DCMI_D2
 	GPIO_PinAFConfig(GPIOE, GPIO_PinSource1, GPIO_AF_DCMI); //DCMI_D3
@@ -633,7 +633,7 @@ void ov7251_dcmi_dma_init(uint16_t buffer_size)
 	DCMI_InitStructure.DCMI_HSPolarity = DCMI_HSPolarity_Low;
 	
 	DCMI_InitStructure.DCMI_CaptureRate = DCMI_CaptureRate_All_Frame;
-	DCMI_InitStructure.DCMI_ExtendedDataMode = DCMI_ExtendedDataMode_8b;
+	DCMI_InitStructure.DCMI_ExtendedDataMode = DCMI_ExtendedDataMode_10b;
 
 	/* Configures the DMA2 to transfer Data from DCMI */
 	/* Enable DMA2 clock */
@@ -646,7 +646,7 @@ void ov7251_dcmi_dma_init(uint16_t buffer_size)
 	DMA_InitStructure.DMA_PeripheralBaseAddr = OV7251_DCMI_DR_ADDRESS;
 	DMA_InitStructure.DMA_Memory0BaseAddr = (uint32_t) dcmi_image_buffer_10bit_1;
 	DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralToMemory;
-	DMA_InitStructure.DMA_BufferSize = buffer_size / 4; // buffer size in date unit (word)
+	DMA_InitStructure.DMA_BufferSize = buffer_size / 2 ; // buffer size in date unit (word)
 	DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
 	DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
 	DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Word;
@@ -674,4 +674,6 @@ void print_ov7251_initlog(void)
 		print("ov7251_initlog[%d] = %d \r\n",i,ov7251_debug[i]);
 	}
 	print("image_counter =%d \r\n",image_counter);
+	print("dma_it = %d\r\n",dma_it);
+	print("dcmi_it = %d\r\n",dcmi_it);
 }

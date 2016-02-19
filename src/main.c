@@ -74,7 +74,7 @@ __ALIGN_BEGIN USB_OTG_CORE_HANDLE  USB_OTG_dev __ALIGN_END;
 
 /* fast image buffers for calculations */
 uint8_t* image_buffer_8bit_1 = ((uint8_t*) 0x10000000);
-uint8_t* image_buffer_8bit_2 = ((uint8_t*) ( 0x10000000 | OV7251_FULL_IMAGE_SIZE ));
+uint8_t* image_buffer_8bit_2 = ((uint8_t*) ( 0x10000000 | (OV7251_FULL_IMAGE_SIZE*2) ));
 uint8_t buffer_reset_needed;
 
 /* boot time in milli seconds */
@@ -506,6 +506,9 @@ int main(void)
 			uint8_t imageread = 0, ov7251value = 2;
 			uint16_t ov7251address = 0x3820;
 			uint8_t read_id;
+			uint8_t version = ov7251_ReadReg16(0x3029);
+			
+			print("OV7251 Revision ID is = %x \r\n", version);
 			
 			print_ov7251_initlog();
 			print("\r\n--------- I2C test for OV7251 ---------\r\n");				

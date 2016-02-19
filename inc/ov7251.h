@@ -68,7 +68,7 @@
 #define PLL_PLL1A                      0x309A//0x05,
 #define PLL_PLL1B                      0x309B//0x04,
 #define PLL_VT_PIX_CLK_DIV             0x30B0//0x0a,
-#define PLL_VT_SYS_CLK_DIV             0x30B1//0x01,
+#define PLL_VT_SYS_CLK_DIV             0x30B1//0x02,
 
 #define PLL_MULTIPLIER                 0x30B3//0x64,
 #define PLL_PLL1_PRE_PLL_DIV           0x30B4//0x03,
@@ -76,8 +76,8 @@
 #define SB_SRB_CTRL                    0x3106//0xda,
 
 #define AEC_EXPO                       0x3500//0x00
-#define AEC_EXPO2                      0x3501//0x0a,
-#define AEC_EXPO3                      0x3502//0x00,
+#define AEC_EXPO2                      0x3501//0x04,
+#define AEC_EXPO3                      0x3502//0x40,
 #define AEC_MANUAL                     0x3503//0x07,
 #define AEC_GAIN_CONVERT               0x3509//0x10,
 #define AEC_AGC_ADJ                    0x350B//0x10,
@@ -106,38 +106,38 @@
 
 #define SENSOR_CONTROL_REG             0x3705//0x41,
 #define SENSOR_CONTROL_REG2            0x3709//0x40,
-#define SENSOR_CONTROL_REG3            0x373C//0x08,
-#define SENSOR_CONTROL_REG4            0x3742//0xe0,
+#define SENSOR_CONTROL_REG3            0x373C//0xe8,
+#define SENSOR_CONTROL_REG4            0x3742//0x00,
 #define SENSOR_CONTROL_REG5            0x3757//0xb3,
 #define SENSOR_CONTROL_REG6            0x3788//0x00,
 #define FIFO_CTRL0_H                   0x37A8//0x02,
-#define FIFO_CTRL0_L                   0x37A9//0x8c,
+#define FIFO_CTRL0_L                   0x37A9//0x14,
 
 #define TIMING_X_ADDR_START            0x3800//0x00,
 #define TIMING_X_ADDR_START2           0x3801//0x04,
 #define TIMING_Y_ADDR_START            0x3802//0x00,
-#define TIMING_Y_ADDR_START2           0x3803//0x00,
+#define TIMING_Y_ADDR_START2           0x3803//0xb4,
 #define TIMING_X_ADDR_END              0x3804//0x02,
 #define TIMING_X_ADDR_END2             0x3805//0x8b,
 #define TIMING_Y_ADDR_END              0x3806//0x01,
-#define TIMING_Y_ADDR_END2             0x3807//0xef,
+#define TIMING_Y_ADDR_END2             0x3807//0x3f,
 #define TIMING_X_OUTPUT_SIZE           0x3808//0x00,
-#define TIMING_X_OUTPUT_SIZE2          0x3809//0xa0,
+#define TIMING_X_OUTPUT_SIZE2          0x3809//0x40,
 #define TIMING_Y_OUTPUT_SIZE           0x380A//0x00,
-#define TIMING_Y_OUTPUT_SIZE2          0x380B//0x78,
+#define TIMING_Y_OUTPUT_SIZE2          0x380B//0x40,
 #define TIMING_HTS                     0x380C//0x03,
-#define TIMING_HTS2                    0x380D//0x04,
-#define TIMING_VTS                     0x380E//0x00,
-#define TIMING_VTS2                    0x380F//0xad,
+#define TIMING_HTS2                    0x380D//0x20,
+#define TIMING_VTS                     0x380E//0x03,
+#define TIMING_VTS2                    0x380F//0xe8,
 
 #define TIMING_ISP_X_WIN               0x3810//0x00,
-#define TIMING_ISP_X_WIN2              0x3811//0x04,
+#define TIMING_ISP_X_WIN2              0x3811//0x82,
 #define TIMING_ISP_Y_WIN               0x3812//0x00,
 #define TIMING_ISP_Y_WIN2              0x3813//0x03,
-#define TIMING_X_INC                   0x3814//0x44,
-#define TIMING_Y_INC                   0x3815//0x44,
-#define TIMING_FORMAT1                 0x3820//0x40,
-#define TIMING_FORMAT2                 0x3821//0x00,
+#define TIMING_X_INC                   0x3814//0x31,
+#define TIMING_Y_INC                   0x3815//0x31,
+#define TIMING_FORMAT1                 0x3820//0x42,
+#define TIMING_FORMAT2                 0x3821//0x01,
 #define TIMING_REG2F                   0x382f//0x0e,
 #define TIMING_REG32                   0x3832//0x00,
 #define TIMING_REG33                   0x3833//0x05,
@@ -177,8 +177,8 @@
 #define LOWPWR07                       0x3C07//0x06,
 #define LOWPWR0C                       0x3C0C//0x01,
 #define LOWPWR0D                       0x3C0D//0x82,
-#define LOWPWR0E                       0x3C0E//0x00,
-#define LOWPWR0F                       0x3C0F//0xad,
+#define LOWPWR0E                       0x3C0E//0x01,
+#define LOWPWR0F                       0x3C0F//0x30,
 
 #define BLC_CTRL01                     0x4001//0x40,
 #define BLC_NUM                        0x4004//0x02,
@@ -188,13 +188,13 @@
 #define DATA_MIN_H                     0x4301//0x00,
 #define SC_REG1501                     0x4501//0x48,
 #define READ_START_H                   0x4600//0x00,
-#define READ_START_L                   0x4601//0x4e,
+#define READ_START_L                   0x4601//0x08,
 
 #define MIPI_CTRL01                    0x4801//0x0f,
 #define MIPI_CTRL06                    0x4806//0x0f,
 #define HS_ZERO_MIN                    0x4819//0xaa,
 #define CLK_TRAIL_MIN                  0x4823//0x3e,
-#define PCLK_PERIOD                    0x4837//0x19,
+#define PCLK_PERIOD                    0x4837//0x28,
 #define DEBUG_CTRL                     0x4A0D//0x00,
 
 #define LOWPWR_CTRL_REG                0x4a47//0x7f,
@@ -218,9 +218,10 @@ void ov7251_context_configuration(void);
  * COLUMN_SIZE * BINNING_COLUMN <= MAX_IMAGE_HEIGHT
  */
 
-#define OV7251_FULL_IMAGE_SIZE (160*120) //188*120 => 160*120
-#define OV7251_FULL_IMAGE_ROW_SIZE (160) //188 =>160
-#define OV7251_FULL_IMAGE_COLUMN_SIZE (120) //120 => 120
+//64X64
+#define OV7251_FULL_IMAGE_SIZE (64*64) //188*120 => 160*120
+#define OV7251_FULL_IMAGE_ROW_SIZE (64) //188 =>160
+#define OV7251_FULL_IMAGE_COLUMN_SIZE (64) //120 => 120
 
 uint8_t ov7251_ReadReg16(uint16_t address);
 uint8_t ov7251_WriteReg16(uint16_t address, uint8_t Data);
