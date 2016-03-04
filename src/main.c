@@ -338,15 +338,15 @@ int main(void)
 		float z_rate = z_rate_sensor; // z is correct
 
 		/* calculate focal_length in pixel */
-		const float focal_length_px = (global_data.param[PARAM_FOCAL_LENGTH_MM]) / (4.0f * 6.0f) * 1000.0f; //original focal lenght: 12mm pixelsize: 6um, binning 4 enabled
-
+		//const float focal_length_px = (global_data.param[PARAM_FOCAL_LENGTH_MM]) / (4.0f * 6.0f) * 1000.0f; //original focal lenght: 12mm pixelsize: 6um, binning 4 enabled
+		const float focal_length_px = 1.64f / 3.0f * 1000.0f; //original focal lenght: 1.64mm pixelsize: 3um
 
 		/* get sonar data */
 		sonar_read(&sonar_distance_filtered, &sonar_distance_raw);
 
 		//IAC chris added for the not ready sonar
-		sonar_distance_raw = 1.5f;
-		sonar_distance_filtered = 1.5f;
+		//sonar_distance_raw = 1.5f;
+		//sonar_distance_filtered = 1.5f;
 
 		/* compute optical flow */
 		if(global_data.param[PARAM_SENSOR_POSITION] == BOTTOM)
@@ -676,7 +676,7 @@ int main(void)
 
 			for (frame = 0; frame < image_size_send / MAVLINK_MSG_ENCAPSULATED_DATA_FIELD_DATA_LEN + 1; frame++)
 			{
-				mavlink_msg_encapsulated_data_send(MAVLINK_COMM_2, frame, &((uint8_t *) current_image)[frame * MAVLINK_MSG_ENCAPSULATED_DATA_FIELD_DATA_LEN]);
+					mavlink_msg_encapsulated_data_send(MAVLINK_COMM_2, frame, &((uint8_t *) current_image)[frame * MAVLINK_MSG_ENCAPSULATED_DATA_FIELD_DATA_LEN]);
 			}
 
 			send_image_now = false;

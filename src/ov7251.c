@@ -77,7 +77,7 @@ void ov7251_context_configuration(void)
 	ov7251_WriteReg16(SB_SRB_CTRL, 0xDA);
 	
 	ov7251_WriteReg16(AEC_EXPO, 0x00);
-	ov7251_WriteReg16(AEC_EXPO2, 0x0F); 
+	ov7251_WriteReg16(AEC_EXPO2, 0x08); 
 	ov7251_WriteReg16(AEC_EXPO3, 0x40);
 	ov7251_WriteReg16(AEC_MANUAL, 0x07); //0x07
 	ov7251_WriteReg16(AEC_GAIN_CONVERT, 0x10); //0x10
@@ -106,24 +106,24 @@ void ov7251_context_configuration(void)
 	ov7251_WriteReg16(ANALOG_REG19, 0x03);
 
 	//sensor control registers
-	ov7251_WriteReg16(SENSOR_CONTROL_REG, 0x41);
+	ov7251_WriteReg16(SENSOR_CONTROL_REG, 0xC1);
 	ov7251_WriteReg16(SENSOR_CONTROL_REG2, 0x40);
-	ov7251_WriteReg16(SENSOR_CONTROL_REG3, 0xE8);
+	ov7251_WriteReg16(SENSOR_CONTROL_REG3, 0x08);
 	ov7251_WriteReg16(SENSOR_CONTROL_REG4, 0x00);
 	ov7251_WriteReg16(SENSOR_CONTROL_REG5, 0xB3);
 	ov7251_WriteReg16(SENSOR_CONTROL_REG6, 0x00);
-	ov7251_WriteReg16(FIFO_CTRL0_H, 0x02);
-	ov7251_WriteReg16(FIFO_CTRL0_L, 0x14);
+	ov7251_WriteReg16(FIFO_CTRL0_H, 0x01);
+	ov7251_WriteReg16(FIFO_CTRL0_L, 0xC0);
 
 	//timing control registers
 	ov7251_WriteReg16(TIMING_X_ADDR_START, 0x00); //default  00
 	ov7251_WriteReg16(TIMING_X_ADDR_START2, 0x04); //default  04
 	ov7251_WriteReg16(TIMING_Y_ADDR_START, 0x00); //default  00
-	ov7251_WriteReg16(TIMING_Y_ADDR_START2, 0xB4); //???????????  00
+	ov7251_WriteReg16(TIMING_Y_ADDR_START2, 0xD4); //???????????  00
 	ov7251_WriteReg16(TIMING_X_ADDR_END, 0x02); //default  02
 	ov7251_WriteReg16(TIMING_X_ADDR_END2, 0x8B); //default  8B
 	ov7251_WriteReg16(TIMING_Y_ADDR_END, 0x01); //default  01
-	ov7251_WriteReg16(TIMING_Y_ADDR_END2, 0x3F); //??????????  EF
+	ov7251_WriteReg16(TIMING_Y_ADDR_END2, 0x1B); //??????????  EF
 	
 	ov7251_WriteReg16(TIMING_X_OUTPUT_SIZE, 0x00); //0x00A0 => 160  //0x0050 => 80
 	ov7251_WriteReg16(TIMING_X_OUTPUT_SIZE2, 0x40);
@@ -131,17 +131,17 @@ void ov7251_context_configuration(void)
 	ov7251_WriteReg16(TIMING_Y_OUTPUT_SIZE2, 0x40);
 	
 	ov7251_WriteReg16(TIMING_HTS, 0x03); //default
-	ov7251_WriteReg16(TIMING_HTS2, 0x20); //default
-	ov7251_WriteReg16(TIMING_VTS, 0x03);
-	ov7251_WriteReg16(TIMING_VTS2, 0xE8);	
-	ov7251_WriteReg16(TIMING_ISP_X_WIN, 0x00);
-	ov7251_WriteReg16(TIMING_ISP_X_WIN2, 0x82);
+	ov7251_WriteReg16(TIMING_HTS2, 0xA0); //default
+	ov7251_WriteReg16(TIMING_VTS, 0x00);
+	ov7251_WriteReg16(TIMING_VTS2, 0x90);	
+	ov7251_WriteReg16(TIMING_ISP_X_WIN, 0x01);
+	ov7251_WriteReg16(TIMING_ISP_X_WIN2, 0x24);
 	ov7251_WriteReg16(TIMING_ISP_Y_WIN, 0x00);
-	ov7251_WriteReg16(TIMING_ISP_Y_WIN2, 0x03);
-	ov7251_WriteReg16(TIMING_X_INC, 0x31);
-	ov7251_WriteReg16(TIMING_Y_INC, 0x31);
-	ov7251_WriteReg16(TIMING_FORMAT1, 0x42);
-	ov7251_WriteReg16(TIMING_FORMAT2, 0x01);
+	ov7251_WriteReg16(TIMING_ISP_Y_WIN2, 0x05);
+	ov7251_WriteReg16(TIMING_X_INC, 0x11);
+	ov7251_WriteReg16(TIMING_Y_INC, 0x11);
+	ov7251_WriteReg16(TIMING_FORMAT1, 0x40);
+	ov7251_WriteReg16(TIMING_FORMAT2, 0x00);
 	ov7251_WriteReg16(TIMING_REG2F, 0x0E);
 	ov7251_WriteReg16(TIMING_REG32, 0x00);
 	ov7251_WriteReg16(TIMING_REG33, 0x05);
@@ -179,12 +179,12 @@ void ov7251_context_configuration(void)
 	ov7251_WriteReg16(LOWPWR06, 0x00);
 	ov7251_WriteReg16(LOWPWR07, 0x06);
 	ov7251_WriteReg16(LOWPWR0C, 0x01); //row period in units of input clock period : 0x0182=>386
-	ov7251_WriteReg16(LOWPWR0D, 0x82);
+	ov7251_WriteReg16(LOWPWR0D, 0xD0);
 	ov7251_WriteReg16(LOWPWR0E, 0x01); //number of rows per base frame : 0xAD=>173
-	ov7251_WriteReg16(LOWPWR0F, 0x30);
+	ov7251_WriteReg16(LOWPWR0F, 0xB0);
 
-	ov7251_WriteReg16(BLC_CTRL01, 0x40);
-	ov7251_WriteReg16(BLC_NUM, 0x02);
+	ov7251_WriteReg16(BLC_CTRL01, 0x42);
+	ov7251_WriteReg16(BLC_NUM, 0x04);
 	ov7251_WriteReg16(BLC_MAN_CTRL, 0x00);
 	ov7251_WriteReg16(BLC_AVG, 0x01);
 	ov7251_WriteReg16(DATA_MAX_H, 0xFF); //default
