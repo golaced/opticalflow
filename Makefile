@@ -10,7 +10,7 @@ JTAGCONFIG 	?= olimex-jtag-tiny.cfg
 #JTAGCONFIG	?= olimex-arm-usb-tiny-h.cfg
 
 MAVLINKBASEDIR = mavlink/include/mavlink/v1.0
-MAVLINKDIR = mavlink/include/mavlink/v1.0/pixhawk
+MAVLINKDIR = mavlink/include/mavlink/v1.0/common
 MAVLINKUSERDIR = mavlink/include/mavlink/v1.0/user
 
 AS =		arm-none-eabi-as
@@ -36,7 +36,8 @@ SRCS = 		src/main.c \
 			src/newlib_stubs.c \
 			src/stmipid02.c \
 			src/dcmi_ov7251.c \
-			src/ov7251.c 
+			src/ov7251.c \
+			src/sonar_mode_filter.c
 SRCS += 	src/system_stm32f4xx.c src/stm32f4xx_it.c lib/startup_stm32f4xx.s
 SRCS += 	lib/STM32F4xx_StdPeriph_Driver/src/misc.c \
 			lib/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_rcc.c \
@@ -91,7 +92,7 @@ objcopy:
 	@python -u Tools/px_mkfw.py --prototype px4flow_prototype.px4 --image $(BINARY_BIN) > px4flow.px4
 
 clean:
-	rm -f *.o *.d *.px4 *.elf *.bin
+	rm -f *.o *.d $(BINARY) $(BINARY_BIN)
 
 upload-jtag:		all flash-both
 

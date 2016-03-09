@@ -36,12 +36,6 @@
 #include <stdlib.h>
 #include <math.h>
 
-#include <stdio.h>
-#include <stdarg.h>
-#include <stdint.h>
-#include <string.h>
-
-
 #include "usbd_cdc_vcp.h"
 #include "mavlink_bridge_header.h"
 #include <mavlink.h>
@@ -53,10 +47,7 @@
 #include "debug.h"
 #include "communication.h"
 
-#include "ov7251.h"
-#include "dcmi_ov7251.h"
-
-extern uint32_t get_boot_time_ms();
+extern uint32_t get_boot_time_us();
 extern void buffer_reset();
 extern void systemreset(bool to_bootloader);
 
@@ -150,7 +141,7 @@ void handle_mavlink_message(mavlink_channel_t chan,
 				if (set.param_id[0] != -1)
 				{
 					/* Choose parameter based on index */
-					if (0 <= set.param_index < ONBOARD_PARAM_COUNT)
+					if ((set.param_index >= 0) && (set.param_index < ONBOARD_PARAM_COUNT))
 					{
 						/* Report back value */
 						mavlink_msg_param_value_send(chan,
@@ -319,7 +310,7 @@ void handle_mavlink_message(mavlink_channel_t chan,
 			if (ping.target_system == 0 && ping.target_component == 0)
 			{
 				/* Respond to ping */
-				uint64_t r_timestamp = get_boot_time_ms() * 1000;
+				uint64_t r_timestamp = get_boot_time_us();
 				mavlink_msg_ping_send(chan, ping.seq, msg->sysid, msg->compid, r_timestamp);
 			}
 		}
@@ -432,7 +423,7 @@ void communication_receive_usb(void)
  * @param chan MAVLink channel to use
  * @param ch Character to send
  */
-void mavlink_send_uart_bytes(mavlink_channel_t chan, uint8_t * ch, uint16_t length)
+void mavlink_send_uart_bytes(mavlink_channel_t chan, const uint8_t * ch, uint16_t length)
 {
 	if (chan == MAVLINK_COMM_0)
 	{
@@ -466,19 +457,5 @@ mavlink_message_t* mavlink_get_channel_buffer(uint8_t channel)
 {
 	static mavlink_message_t m_mavlink_buffer[MAVLINK_COMM_NUM_BUFFERS];
 	return &m_mavlink_buffer[channel];
-}
-
-void print(const char *fmt, ...) 
-{ 
-    char buf[256];  
-
-    va_list vlist; 
-    va_start(vlist, fmt); 
-
-    vsnprintf(buf, sizeof(buf) - 1, fmt, vlist); 
-    //USART_PutString((unsigned char *)buf); 
-    //usbSendBytes((unsigned char *)buf, strlen(buf)); 
-    mavlink_send_uart_bytes(MAVLINK_COMM_3, (unsigned char *)buf, strlen(buf));
-    va_end(vlist); 
 }
 

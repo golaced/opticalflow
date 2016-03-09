@@ -668,12 +668,3 @@ void ov7251_dcmi_dma_init(uint16_t buffer_size)
 	DMA_Init(DMA2_Stream1, &DMA_InitStructure);
 }
 
-void print_ov7251_initlog(void)
-{
-	for(int i=0 ; i<9 ; i++){
-		print("ov7251_initlog[%d] = %d \r\n",i,ov7251_debug[i]);
-	}
-	print("image_counter =%d \r\n",image_counter);
-	print("dma_it = %d\r\n",dma_it);
-	print("dcmi_it = %d\r\n",dcmi_it);
-}

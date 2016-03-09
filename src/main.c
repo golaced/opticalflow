@@ -77,13 +77,10 @@ uint8_t* image_buffer_8bit_1 = ((uint8_t*) 0x10000000);
 uint8_t* image_buffer_8bit_2 = ((uint8_t*) ( 0x10000000 | (OV7251_FULL_IMAGE_SIZE*2) ));
 uint8_t buffer_reset_needed;
 
-/* boot time in milli seconds */
+/* boot time in milliseconds ticks */
 volatile uint32_t boot_time_ms = 0;
-
-//chris
-//#define DEBUG_MT9V034   1
-//#define DEBUG_STMIPID02 1
-//#define DEBUG_OV7251    1
+/* boot time in 10 microseconds ticks */
+volatile uint32_t boot_time10_us = 0;
 
 /* timer constants */
 #define NTIMERS         	8
@@ -95,11 +92,13 @@ volatile uint32_t boot_time_ms = 0;
 #define TIMER_RECEIVE		5
 #define TIMER_PARAMS		6
 #define TIMER_IMAGE			7
-#define LED_TIMER_COUNT		500
-#define SONAR_TIMER_COUNT 	100
-#define SYSTEM_STATE_COUNT	1000
-#define PARAMS_COUNT		100
+#define MS_TIMER_COUNT		100 /* steps in 10 microseconds ticks */
+#define LED_TIMER_COUNT		500 /* steps in milliseconds ticks */
+#define SONAR_TIMER_COUNT 	100	/* steps in milliseconds ticks */
+#define SYSTEM_STATE_COUNT	1000/* steps in milliseconds ticks */
+#define PARAMS_COUNT		100	/* steps in milliseconds ticks */
 static volatile unsigned timer[NTIMERS];
+static volatile unsigned timer_ms = MS_TIMER_COUNT;
 
 /* timer/system booleans */
 bool send_system_state_now = true;
@@ -107,15 +106,12 @@ bool receive_now = true;
 bool send_params_now = true;
 bool send_image_now = true;
 
-extern uint8_t i2cread_stmipid02[20] = {0};
-extern uint8_t i2cread_ov7251[120] = {0};
-
 /**
-  * @brief  Increment boot_time variable and decrement timer array.
+  * @brief  Increment boot_time_ms variable and decrement timer array.
   * @param  None
   * @retval None
   */
-void timer_update(void)
+void timer_update_ms(void)
 {
 	boot_time_ms++;
 
@@ -162,9 +158,35 @@ void timer_update(void)
 	}
 }
 
+/**
+  * @brief  Increment boot_time10_us variable and decrement millisecond timer, triggered by timer interrupt
+  * @param  None
+  * @retval None
+  */
+void timer_update(void)
+{
+	boot_time10_us++;
+
+	/*  decrements every 10 microseconds*/
+	timer_ms--;
+
+	if (timer_ms == 0)
+	{
+		timer_update_ms();
+		timer_ms = MS_TIMER_COUNT;
+	}
+
+}
+
+
 uint32_t get_boot_time_ms(void)
 {
 	return boot_time_ms;
+}
+
+uint32_t get_boot_time_us(void)
+{
+	return boot_time10_us*10;// *10 to return microseconds
 }
 
 void delay(unsigned msec)
@@ -198,7 +220,7 @@ int main(void)
 	SCB_CPACR |= ((3UL << 10 * 2) | (3UL << 11 * 2)); /* set CP10 Full Access and set CP11 Full Access */
 
 	/* init clock */
-	if (SysTick_Config(SystemCoreClock / 1000))
+	if (SysTick_Config(SystemCoreClock / 100000))/*set timer to trigger interrupt every 10 microsecond */
 	{
 		/* capture clock error */
 		LEDOn(LED_ERR);
@@ -214,13 +236,6 @@ int main(void)
 
 	/* init mavlink */
 	communication_init();
-
-//chris
-	/* enable image capturing */
-#ifdef DEBUG_MT9V034
-	//not compile dcmi.c 
-	enable_image_capture();
-#endif
 
 	enable_ov7251_image_capture();
 
@@ -272,7 +287,16 @@ int main(void)
 	int valid_frame_count = 0;
 	int pixel_flow_count = 0;
 
-	u16 loop_count = 0;
+	static float accumulated_flow_x = 0;
+	static float accumulated_flow_y = 0;
+	static float accumulated_gyro_x = 0;
+	static float accumulated_gyro_y = 0;
+	static float accumulated_gyro_z = 0;
+	static uint16_t accumulated_framecount = 0;
+	static uint16_t accumulated_quality = 0;
+	static uint32_t integration_timespan = 0;
+	static uint32_t lasttime = 0;
+	uint32_t time_since_last_sonar_update= 0;
 
 	/* main loop */
 	while (1)
@@ -291,7 +315,6 @@ int main(void)
 		}
 
 		/* calibration routine */
-		/**/
 		if(global_data.param[PARAM_VIDEO_ONLY])
 		{
 			while(global_data.param[PARAM_VIDEO_ONLY])
@@ -330,7 +353,8 @@ int main(void)
 
 		/* new gyroscope data */
 		float x_rate_sensor, y_rate_sensor, z_rate_sensor;
-		gyro_read(&x_rate_sensor, &y_rate_sensor, &z_rate_sensor);
+		int16_t gyro_temp;
+		gyro_read(&x_rate_sensor, &y_rate_sensor, &z_rate_sensor,&gyro_temp);
 
 		/* gyroscope coordinate transformation */
 		float x_rate = y_rate_sensor; // change x and y rates
@@ -344,10 +368,6 @@ int main(void)
 		/* get sonar data */
 		sonar_read(&sonar_distance_filtered, &sonar_distance_raw);
 
-		//IAC chris added for the not ready sonar
-		//sonar_distance_raw = 1.5f;
-		//sonar_distance_filtered = 1.5f;
-
 		/* compute optical flow */
 		if(global_data.param[PARAM_SENSOR_POSITION] == BOTTOM)
 		{
@@ -355,7 +375,7 @@ int main(void)
 			ov7251_dma_copy_image_buffers(&current_image, &previous_image, image_size, 1);
 
 			/* compute optical flow */
-			qual = compute_klt(previous_image, current_image, x_rate, y_rate, z_rate, &pixel_flow_x, &pixel_flow_y);
+            qual = compute_klt(previous_image, current_image, x_rate, y_rate, z_rate, &pixel_flow_x, &pixel_flow_y);
 			
 			if (sonar_distance_filtered > 5.0f || sonar_distance_filtered == 0.0f)
 			{
@@ -373,31 +393,8 @@ int main(void)
 			 * x / f = X / Z
 			 * y / f = Y / Z
 			 */
-			float flow_compx = pixel_flow_x / focal_length_px / (ov7251_get_time_between_images() / 1000.0f);
-			float flow_compy = pixel_flow_y / focal_length_px / (ov7251_get_time_between_images() / 1000.0f);
-
-
-      /*
-       * gyro compensation
-       *
-       * TODO: do not compensate more than the valid flow value (+/- 4.5 pixels)
-       *
-       * -y_rate gives x flow
-       * x_rates gives y_flow
-       */
-      if (global_data.param[PARAM_BOTTOM_FLOW_GYRO_COMPENSATION])
-      {
-        if(fabsf(y_rate) > global_data.param[PARAM_GYRO_COMPENSATION_THRESHOLD])
-        {
-          flow_compx = flow_compx - y_rate;
-        }
-
-        if(fabsf(x_rate) > global_data.param[PARAM_GYRO_COMPENSATION_THRESHOLD])
-        {
-          flow_compy = flow_compy + x_rate;
-        }
-      }
-
+			float flow_compx = pixel_flow_x / focal_length_px / (ov7251_get_time_between_images() / 1000000.0f);
+			float flow_compy = pixel_flow_y / focal_length_px / (ov7251_get_time_between_images() / 1000000.0f);
 
 			/* integrate velocity and output values only if distance is valid */
 			if (distance_valid)
@@ -406,11 +403,23 @@ int main(void)
 				float new_velocity_x = - flow_compx * sonar_distance_filtered;
 				float new_velocity_y = - flow_compy * sonar_distance_filtered;
 
+				time_since_last_sonar_update = (get_boot_time_us()- get_sonar_measure_time());
+
 				if (qual > 0)
 				{
 					velocity_x_sum += new_velocity_x;
 					velocity_y_sum += new_velocity_y;
 					valid_frame_count++;
+
+					uint32_t deltatime = (get_boot_time_us() - lasttime);
+					integration_timespan += deltatime;
+					accumulated_flow_x += pixel_flow_y  / focal_length_px * 1.0f; //rad axis swapped to align x flow around y axis
+					accumulated_flow_y += pixel_flow_x  / focal_length_px * -1.0f;//rad
+					accumulated_gyro_x += x_rate * deltatime / 1000000.0f;	//rad
+					accumulated_gyro_y += y_rate * deltatime / 1000000.0f;	//rad
+					accumulated_gyro_z += z_rate * deltatime / 1000000.0f;	//rad
+					accumulated_framecount++;
+					accumulated_quality += qual;
 
 					/* lowpass velocity output */
 					velocity_x_lp = global_data.param[PARAM_BOTTOM_FLOW_WEIGHT_NEW] * new_velocity_x +
@@ -431,6 +440,8 @@ int main(void)
 				velocity_x_lp = (1.0f - global_data.param[PARAM_BOTTOM_FLOW_WEIGHT_NEW]) * velocity_x_lp;
 				velocity_y_lp = (1.0f - global_data.param[PARAM_BOTTOM_FLOW_WEIGHT_NEW]) * velocity_y_lp;
 			}
+			//update lasttime
+			lasttime = get_boot_time_us();
 
 			pixel_flow_x_sum += pixel_flow_x;
 			pixel_flow_y_sum += pixel_flow_y;
@@ -440,120 +451,33 @@ int main(void)
 
 		counter++;
 
-//IAC chris added for debug
-		loop_count++;
-		while( loop_count == 2000){
-			print("\r\n============================= Debug Log =============================\r\n");
-			print("SONAR   distance = %f \r\n", sonar_distance_raw);
-			print("GYRO    x = %f, y = %f, z = %f \r\n",x_rate,y_rate,z_rate);		
-			
-#ifdef DEBUG_MT9V034
-			//not compile mt9v034.c 
-			uint16_t version = mt9v034_ReadReg16(0x1324);
-			//test the i2c of MT9V034
-			uint16_t i2ctest = 0, i2ctestvalue = 3, i2ctestaddress = 0x1B;
-			print("\r\n--------- i2c test for MT9V034 ---------\r\n");
-			print("MT9V034 chip_version = %x \r\n", version);
-			print("Write value (0) to address [0x1B]\r\n");
-			mt9v034_WriteReg16(i2ctestaddress, 0);
-			delay(3);
-			i2ctest = mt9v034_ReadReg16(i2ctestaddress);
-			print("MT9V034 i2c test, the value of [0x1B] = %x \r\n", i2ctest);
-			print("Write value (3) to address [0x1B]\r\n");
-			mt9v034_WriteReg16(i2ctestaddress, i2ctestvalue);
-			delay(3);
-			i2ctest = mt9v034_ReadReg16(i2ctestaddress);
-			print("MT9V034 i2c test, the value of [0x1B] = %x \r\n", i2ctest);
-			
-			if(i2ctest==i2ctestvalue){
-				print("!!! i2c test for MT9V034 PASS !!! \r\n");
-			}else{
-				print("@@@ i2c test for MT9V034 FAIL @@@ \r\n");
-			}
-#endif
-
-#ifdef DEBUG_STMIPID02
-			//test the i2c of STMIPID02
-			uint8_t i2cread = 0;
-			uint8_t stmipid02value = 1, stmipid02address = 0x14; //0x14
-
-			print("\r\n--------- I2C test for STMIPID02 ---------\r\n");
-			print("Write value (0) to address [0x14]\r\n");
-			stmipid02_WriteReg8(stmipid02address, 0);
-			//delay(3);
-			i2cread = stmipid02_ReadReg8(stmipid02address);
-			print("STMIPID02 i2c test, the value of [0x14] = %x \r\n", i2cread);
-			print("Write value (1) to address [0x14]\r\n");
-			stmipid02_WriteReg8(stmipid02address, stmipid02value);
-			//delay(3);
-			i2cread = stmipid02_ReadReg8(stmipid02address);
-			print("STMIPID02 i2c test, the value of [0x14] = %x \r\n", i2cread);
-			
-			if(i2cread==stmipid02value){
-				print("!!! I2C test for STMIPID02 PASS !!! \r\n");
-			}else{
-				print("@@@ I2C test for STMIPID02 FAIL @@@ \r\n");
-			}
-			/*
-			for(int i =0 ; i<15 ; i++){
-				print("stmipi registers[%d] = 0x%x\r\n",i , i2cread_stmipid02[i]);
-			}
-			*/
-#endif
-
-#ifdef DEBUG_OV7251
-			//test the i2c of OV7251
-			uint8_t imageread = 0, ov7251value = 2;
-			uint16_t ov7251address = 0x3820;
-			uint8_t read_id;
-			uint8_t version = ov7251_ReadReg16(0x3029);
-			
-			print("OV7251 Revision ID is = %x \r\n", version);
-			
-			print_ov7251_initlog();
-			print("\r\n--------- I2C test for OV7251 ---------\r\n");				
-			read_id = ov7251_ReadReg16(0x300A);
-			print("OV7251 ID high = %x\r\n",read_id);
-			read_id = ov7251_ReadReg16(0x300B);
-			print("OV7251 ID low = %x\r\n",read_id);
-			
-			print("Write value (0) to address [0x3820]\r\n");
-			ov7251_WriteReg16(ov7251address, 0);
-			delay(3);
-			imageread = ov7251_ReadReg16(ov7251address);
-			print("OV7251 i2c test, the value of [0x3820] = %x \r\n", imageread);
-			print("Write value (2) to address [0x3820]\r\n");
-			ov7251_WriteReg16(ov7251address, ov7251value);
-			delay(3);
-			imageread = ov7251_ReadReg16(ov7251address);
-			print("OV7251 i2c test, the value of [0x3820] = %x \r\n", imageread);
-			
-			if(imageread==ov7251value){
-				print("!!! I2C test for OV7251 PASS !!! \r\n");
-			}else{
-				print("@@@ I2C test for OV7251 FAIL @@@ \r\n");
-			}
-			/*
-			for(int j =0 ; j<120 ; j++){
-				print("ov7251 registers[%d] = 0x%x\r\n",j , i2cread_ov7251[j]);
-			}
-			*/
-#endif
-			print("\r\n\n\n");
-			loop_count = 0;
-		}
-
-		/* TODO for debugging */
-		//mavlink_msg_named_value_float_send(MAVLINK_COMM_2, boot_time_ms, "blabla", blabla);
-
 		if(global_data.param[PARAM_SENSOR_POSITION] == BOTTOM)
 		{
 			/* send bottom flow if activated */
-			if (counter % 2 == 0)
+
+			float ground_distance = 0.0f;
+
+
+			if(global_data.param[PARAM_SONAR_FILTERED])
 			{
+				ground_distance = sonar_distance_filtered;
+			}
+			else
+			{
+				ground_distance = sonar_distance_raw;
+			}
+
+			//update I2C transmitbuffer
+            update_TX_buffer(pixel_flow_x, pixel_flow_y, velocity_x_sum/valid_frame_count, velocity_y_sum/valid_frame_count, qual,
+                    ground_distance, x_rate, y_rate, z_rate, gyro_temp);
+
+            //serial mavlink  + usb mavlink output throttled
+			if (counter % (uint32_t)global_data.param[PARAM_BOTTOM_FLOW_SERIAL_THROTTLE_FACTOR] == 0)//throttling factor
+			{
+
 				float flow_comp_m_x = 0.0f;
 				float flow_comp_m_y = 0.0f;
-				float ground_distance = 0.0f;
+
 				if(global_data.param[PARAM_BOTTOM_FLOW_LP_FILTERED])
 				{
 					flow_comp_m_x = velocity_x_lp;
@@ -565,47 +489,47 @@ int main(void)
 					flow_comp_m_y = velocity_y_sum/valid_frame_count;
 				}
 
-				if(global_data.param[PARAM_SONAR_FILTERED])
-					ground_distance = sonar_distance_filtered;
-				else
-					ground_distance = sonar_distance_raw;
 
-				if (valid_frame_count > 0)
-				{
-					// send flow
-					mavlink_msg_optical_flow_send(MAVLINK_COMM_0, get_boot_time_ms() * 1000, global_data.param[PARAM_SENSOR_ID],
-							pixel_flow_x_sum * 10.0f, pixel_flow_y_sum * 10.0f,
-							flow_comp_m_x, flow_comp_m_y, qual, ground_distance);
-
-					if (global_data.param[PARAM_USB_SEND_FLOW])
-						mavlink_msg_optical_flow_send(MAVLINK_COMM_2, get_boot_time_ms() * 1000, global_data.param[PARAM_SENSOR_ID],
-							pixel_flow_x_sum * 10.0f, pixel_flow_y_sum * 10.0f,
-							flow_comp_m_x, flow_comp_m_y, qual, ground_distance);
-
-                    update_TX_buffer(pixel_flow_x_sum * 10.0f, pixel_flow_y_sum * 10.0f, flow_comp_m_x, flow_comp_m_y, qual,
-                            ground_distance, x_rate, y_rate, z_rate);
-
-				}
-				else
-				{
-					// send distance
-					mavlink_msg_optical_flow_send(MAVLINK_COMM_0, get_boot_time_ms() * 1000, global_data.param[PARAM_SENSOR_ID],
+				// send flow
+				mavlink_msg_optical_flow_send(MAVLINK_COMM_0, get_boot_time_us(), global_data.param[PARAM_SENSOR_ID],
 						pixel_flow_x_sum * 10.0f, pixel_flow_y_sum * 10.0f,
-						0.0f, 0.0f, 0, ground_distance);
+						flow_comp_m_x, flow_comp_m_y, qual, ground_distance);
 
-					if (global_data.param[PARAM_USB_SEND_FLOW])
-						mavlink_msg_optical_flow_send(MAVLINK_COMM_2, get_boot_time_ms() * 1000, global_data.param[PARAM_SENSOR_ID],
+				mavlink_msg_optical_flow_rad_send(MAVLINK_COMM_0, get_boot_time_us(), global_data.param[PARAM_SENSOR_ID],
+						integration_timespan, accumulated_flow_x, accumulated_flow_y,
+						accumulated_gyro_x, accumulated_gyro_y, accumulated_gyro_z,
+						gyro_temp, accumulated_quality/accumulated_framecount,
+						time_since_last_sonar_update,ground_distance);
+
+				if (global_data.param[PARAM_USB_SEND_FLOW])
+				{
+					mavlink_msg_optical_flow_send(MAVLINK_COMM_2, get_boot_time_us(), global_data.param[PARAM_SENSOR_ID],
 							pixel_flow_x_sum * 10.0f, pixel_flow_y_sum * 10.0f,
-							0.0f, 0.0f, 0, ground_distance);
-	
-                    update_TX_buffer(pixel_flow_x_sum * 10.0f, pixel_flow_y_sum * 10.0f, 0.0f, 0.0f, 0, ground_distance, x_rate, y_rate,
-                            z_rate);
-                }
+						flow_comp_m_x, flow_comp_m_y, qual, ground_distance);
+
+
+					mavlink_msg_optical_flow_rad_send(MAVLINK_COMM_2, get_boot_time_us(), global_data.param[PARAM_SENSOR_ID],
+							integration_timespan, accumulated_flow_x, accumulated_flow_y,
+							accumulated_gyro_x, accumulated_gyro_y, accumulated_gyro_z,
+							gyro_temp, accumulated_quality/accumulated_framecount,
+							time_since_last_sonar_update,ground_distance);
+				}
+
 
 				if(global_data.param[PARAM_USB_SEND_GYRO])
 				{
-					mavlink_msg_debug_vect_send(MAVLINK_COMM_2, "GYRO", get_boot_time_ms() * 1000, x_rate, y_rate, z_rate);
+					mavlink_msg_debug_vect_send(MAVLINK_COMM_2, "GYRO", get_boot_time_us(), x_rate, y_rate, z_rate);
 				}
+
+
+				integration_timespan = 0;
+				accumulated_flow_x = 0;
+				accumulated_flow_y = 0;
+				accumulated_framecount = 0;
+				accumulated_quality = 0;
+				accumulated_gyro_x = 0;
+				accumulated_gyro_y = 0;
+				accumulated_gyro_z = 0;
 
 				velocity_x_sum = 0.0f;
 				velocity_y_sum = 0.0f;
@@ -658,9 +582,9 @@ int main(void)
 			uint16_t image_width_send;
 			uint16_t image_height_send;
 
+			image_size_send = image_size;
 			image_width_send = global_data.param[PARAM_IMAGE_WIDTH];
-			image_height_send = global_data.param[PARAM_IMAGE_HEIGHT];//+global_data.param[PARAM_IMAGE_HEIGHT]/2;
-			image_size_send = image_width_send*image_height_send;
+			image_height_send = global_data.param[PARAM_IMAGE_HEIGHT];
 
 			mavlink_msg_data_transmission_handshake_send(
 					MAVLINK_COMM_2,
@@ -676,7 +600,7 @@ int main(void)
 
 			for (frame = 0; frame < image_size_send / MAVLINK_MSG_ENCAPSULATED_DATA_FIELD_DATA_LEN + 1; frame++)
 			{
-					mavlink_msg_encapsulated_data_send(MAVLINK_COMM_2, frame, &((uint8_t *) current_image)[frame * MAVLINK_MSG_ENCAPSULATED_DATA_FIELD_DATA_LEN]);
+				mavlink_msg_encapsulated_data_send(MAVLINK_COMM_2, frame, &((uint8_t *) current_image)[frame * MAVLINK_MSG_ENCAPSULATED_DATA_FIELD_DATA_LEN]);
 			}
 
 			send_image_now = false;

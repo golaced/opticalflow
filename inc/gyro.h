@@ -78,6 +78,8 @@
 #define ADDR_REFERENCE				0x25
 #define ADDR_TEMPERATURE			0x26
 
+#define L3GD20_TEMP_OFFSET_CELSIUS  40
+
 #define ADDR_STATUS_REG				0x27
 #define STATUS_ZYXOR				(1<<7)
 #define SATAUS_ZOR					(1<<6)
@@ -145,7 +147,7 @@ void gyro_config(void);
 /**
  * @brief Read out newest gyro value
  */
-void gyro_read(float* x_rate, float* y_rate, float* z_rate);
+void gyro_read(float* x_rate, float* y_rate, float* z_rate, int16_t* gyro_temp);
 
 /* Low layer functions */
 void spi_config(void);
