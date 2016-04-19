@@ -52,6 +52,8 @@ void UART4_IRQHandler(void);
   */
 void sonar_trigger(void);
 
+void sonar_trigger_low(void);
+
 /**
   * @brief  Read out newest sonar data
   */

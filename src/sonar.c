@@ -49,6 +49,8 @@
 #include "settings.h"
 #include "sonar.h"
 #include "sonar_mode_filter.h"
+#include "stm32f4xx_exti.h"
+#include "stm32f4xx_syscfg.h"
 
 #define SONAR_SCALE 1000.0f
 
@@ -68,6 +70,9 @@ static volatile int new_value = 0;
 static volatile uint32_t sonar_measure_time_interrupt = 0;
 static volatile uint32_t sonar_measure_time = 0;
 
+static volatile float record_sonar_value_filtered = 0.0f;
+static volatile float record_sonar_value_raw = 0.0f;
+
 /* kalman filter states */
 float x_pred = 0.0f; // m
 float v_pred = 0.0f;
@@ -78,73 +83,37 @@ float sonar_raw = 0.0f;  // m
 
 float sonar_mode = 0.0f;				/**< the mode of all sonar measurements */
 
+void EXTI13_IRQHandler(void) {
+	u16 count;
+	
+	if(EXTI_GetITStatus(EXTI_Line13) != RESET){
+		TIM_Cmd(TIM4, DISABLE);
+		count = TIM_GetCounter(TIM4);
+
+		record_sonar_value_filtered = (count*0.000344)/2.0;
+		record_sonar_value_raw = (count*0.000344)/2.0;	
+		//EXTI_ClearITPendingBit(EXTI_Line13); 
+	}
+}
+
 /**
   * @brief  Triggers the sonar to measure the next value
   *
   * see datasheet for more info
   */
 void sonar_trigger(){
+	last_measure_time = measure_time;
+	measure_time = get_boot_time_ms();
+    sonar_measure_time_interrupt = measure_time;
+
 	GPIO_SetBits(GPIOE, GPIO_Pin_8);
+	
+	TIM_SetCounter(TIM4, 0);
+	TIM_Cmd(TIM4, ENABLE);
 }
 
-/**
-  * @brief  Sonar interrupt handler
-  */
-void UART4_IRQHandler(void)
-{
-	if (USART_GetITStatus(UART4, USART_IT_RXNE) != RESET)
-	{
-		/* Read one byte from the receive data register */
-		uint8_t data = (USART_ReceiveData(UART4));
-
-		if (data == 'R')
-		{
-			/* this is the first char (start of transmission) */
-			data_counter = 0;
-			data_valid = 1;
-
-			/* set sonar pin 4 to low -> we want triggered mode */
-			GPIO_ResetBits(GPIOE, GPIO_Pin_8);
-		}
-		else if (0x30 <= data && data <= 0x39)
-		{
-			if (data_valid)
-			{
-				data_buffer[data_counter] = data;
-				data_counter++;
-			}
-		}
-		else if (data == 0x0D)
-		{
-			if (data_valid && data_counter == 4)
-			{
-				data_buffer[4] = 0;
-				int temp = atoi(data_buffer);
-
-				/*
-				 * 4744 or 4743 is invalid data (or upper/lower than maximal/minimal range)
-				 */
-				if (temp > 0 && temp < 4743)
-				{
-					/* it is in normal sensor range, take it */
-					last_measure_time = measure_time;
-					measure_time = get_boot_time_us();
-					sonar_measure_time_interrupt = measure_time;
-					dt = ((float)(measure_time - last_measure_time)) / 1000000.0f;
-
-					valid_data = temp;
-					sonar_mode = insert_sonar_value_and_get_mode_value(valid_data / SONAR_SCALE);
-					new_value = 1;
-				}
-			}
-
-			data_valid = 0;
-		}
-		else
-		{
-			data_valid = 0;
-		}
-	}
+void sonar_trigger_low(){	
+	GPIO_ResetBits(GPIOE, GPIO_Pin_8);
 }
 
 /**
@@ -177,16 +146,9 @@ void sonar_filter()
   */
 void sonar_read(float* sonar_value_filtered, float* sonar_value_raw)
 {
-	/* getting new data with only around 10Hz */
-	if(new_value) {
-		sonar_filter();
-		new_value = 0;
-		sonar_measure_time = get_boot_time_us();
-	}
-
-	*sonar_value_filtered = x_post;
-	*sonar_value_raw = sonar_raw;
-
+	// 344 m/s = 344 m/1*1000*1000us = 0.000344 m/us
+	*sonar_value_filtered = record_sonar_value_filtered;
+	*sonar_value_raw = record_sonar_value_raw;
 }
 
 /**
@@ -194,66 +156,76 @@ void sonar_read(float* sonar_value_filtered, float* sonar_value_raw)
  */
 void sonar_config(void)
 {
-	valid_data = 0;
+	//valid_data = 0;
+	uint16_t PrescalerValue = 0;
+    PrescalerValue = 84-1;
 
+	//PE8 , TRIGER
 	GPIO_InitTypeDef GPIO_InitStructure;
-
-	/* Enable GPIO clocks */
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOE, ENABLE);
-
-	/* Configure l3gd20 CS pin in output pushpull mode */
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
-	GPIO_InitStructure.GPIO_OType = GPIO_OType_OD;
+	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
 	GPIO_Init(GPIOE, &GPIO_InitStructure);
+	GPIO_ResetBits(GPIOE, GPIO_Pin_8);
 
-	/* Configures the nested vectored interrupt controller. */
+	//PD13 , ECHO
+	GPIO_InitTypeDef GPIO_InitStructure2;
+	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD, ENABLE);
+	GPIO_InitStructure2.GPIO_Pin = GPIO_Pin_13;
+	GPIO_InitStructure2.GPIO_Mode = GPIO_Mode_IN;
+	GPIO_InitStructure2.GPIO_PuPd = GPIO_PuPd_NOPULL;
+	GPIO_InitStructure2.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_Init(GPIOD, &GPIO_InitStructure2);
+
+	//PF8 , DELAY
+	GPIO_InitTypeDef GPIO_InitStructure3;
+	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOF, ENABLE);
+	GPIO_InitStructure3.GPIO_Pin = GPIO_Pin_8;
+	GPIO_InitStructure2.GPIO_Mode = GPIO_Mode_IN;
+	GPIO_InitStructure2.GPIO_PuPd = GPIO_PuPd_NOPULL;
+	GPIO_InitStructure2.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_Init(GPIOF, &GPIO_InitStructure3);
+
+	//============================================
+	
+	//PD13 using TIM4
+	TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM4, ENABLE);
+	TIM_TimeBaseStructure.TIM_Period = 49999; //
+	TIM_TimeBaseStructure.TIM_Prescaler = PrescalerValue; //
+	TIM_TimeBaseStructure.TIM_ClockDivision = 0x0;
+	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
+	TIM_TimeBaseInit(TIM4, &TIM_TimeBaseStructure);
+
+	//PF8 using TIM13
+	TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure2;  
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM13, ENABLE); 
+    TIM_TimeBaseStructure2.TIM_Period = 9999; //1us x 10000 = 10ms
+    TIM_TimeBaseStructure2.TIM_Prescaler = PrescalerValue; // APB1 = 42MHz, TIMxCLK = 84MHz, (84MHz/83+1)=1MHz => 1us 
+    TIM_TimeBaseStructure2.TIM_ClockDivision = 0x0;  
+    TIM_TimeBaseStructure2.TIM_CounterMode = TIM_CounterMode_Up;   
+    TIM_TimeBaseInit(TIM13, &TIM_TimeBaseStructure2); 
+		
 	NVIC_InitTypeDef NVIC_InitStructure;
+	EXTI_InitTypeDef EXTI_InitStructure;
+	
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_SYSCFG, ENABLE);
+	SYSCFG_EXTILineConfig(EXTI_PortSourceGPIOD, EXTI_PinSource13); 
 
-	/* Enable the USARTx Interrupt */
-	NVIC_InitStructure.NVIC_IRQChannel = UART4_IRQn;
+	EXTI_InitStructure.EXTI_Line = EXTI_Line13;
+	EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;
+	EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Rising;
+	EXTI_InitStructure.EXTI_LineCmd = ENABLE;
+	EXTI_Init(&EXTI_InitStructure);
+
+	NVIC_InitStructure.NVIC_IRQChannel = EXTI13_IRQn;
 	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
 	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
 	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
 	NVIC_Init(&NVIC_InitStructure);
-
-	/* Enable the USART clock */
-	RCC_APB1PeriphClockCmd(RCC_APB1Periph_UART4, ENABLE);
-	/* Enable GPIO clocks */
-	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC, ENABLE);
-
-	/* Connect UART pins to AF7 */
-	GPIO_PinAFConfig(GPIOC, GPIO_PinSource11, GPIO_AF_UART4);
-
-	GPIO_InitTypeDef GPIO_InitStructure_Serial2;
-	GPIO_InitStructure_Serial2.GPIO_Mode = GPIO_Mode_AF;
-	GPIO_InitStructure_Serial2.GPIO_Speed = GPIO_Speed_100MHz;
-	GPIO_InitStructure_Serial2.GPIO_OType = GPIO_OType_PP;
-	GPIO_InitStructure_Serial2.GPIO_PuPd = GPIO_PuPd_UP;
-
-	/* USART RX pin configuration */
-	GPIO_InitStructure_Serial2.GPIO_Pin = GPIO_Pin_11;
-	GPIO_Init(GPIOC, &GPIO_InitStructure_Serial2);
-
-	USART_InitTypeDef USART_InitStructure;
-
-	USART_InitStructure.USART_BaudRate = 9600;
-	USART_InitStructure.USART_WordLength = USART_WordLength_8b;
-	USART_InitStructure.USART_StopBits = USART_StopBits_1;
-	USART_InitStructure.USART_Parity = USART_Parity_No;
-	USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
-	USART_InitStructure.USART_Mode = USART_Mode_Rx;
-
-	/* Configure the UART4 */
-	USART_Init(UART4, &USART_InitStructure);
-
-	/* Enable UART4 interrupt */
-	USART_ITConfig(UART4, USART_IT_RXNE, ENABLE);
-
-	USART_Cmd(UART4, ENABLE);
-
 }
 
 uint32_t get_sonar_measure_time()

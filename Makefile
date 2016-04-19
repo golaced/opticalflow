@@ -49,6 +49,8 @@ SRCS += 	lib/STM32F4xx_StdPeriph_Driver/src/misc.c \
 			lib/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_usart.c \
 			lib/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_adc.c \
 			lib/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_gpio.c \
+			lib/STM32F4xx_StdPeriph_Driver/src/Stm32f4xx_syscfg.c \
+			lib/STM32F4xx_StdPeriph_Driver/src/Stm32f4xx_exti.c \
 			lib/STM32_USB_OTG_Driver/src/usb_core.c \
 			lib/STM32_USB_OTG_Driver/src/usb_dcd_int.c \
 			lib/STM32_USB_OTG_Driver/src/usb_dcd.c \

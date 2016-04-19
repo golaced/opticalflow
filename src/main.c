@@ -83,7 +83,7 @@ volatile uint32_t boot_time_ms = 0;
 volatile uint32_t boot_time10_us = 0;
 
 /* timer constants */
-#define NTIMERS         	8
+#define NTIMERS         	9
 #define TIMER_CIN       	0
 #define TIMER_LED       	1
 #define TIMER_DELAY     	2
@@ -92,19 +92,23 @@ volatile uint32_t boot_time10_us = 0;
 #define TIMER_RECEIVE		5
 #define TIMER_PARAMS		6
 #define TIMER_IMAGE			7
+#define TIMER_SONAR_LOW		8
 #define MS_TIMER_COUNT		100 /* steps in 10 microseconds ticks */
 #define LED_TIMER_COUNT		500 /* steps in milliseconds ticks */
 #define SONAR_TIMER_COUNT 	100	/* steps in milliseconds ticks */
+#define SONAR_LOW_TIMER_COUNT 	101	/* steps in milliseconds ticks */
 #define SYSTEM_STATE_COUNT	1000/* steps in milliseconds ticks */
 #define PARAMS_COUNT		100	/* steps in milliseconds ticks */
 static volatile unsigned timer[NTIMERS];
 static volatile unsigned timer_ms = MS_TIMER_COUNT;
+static uint8_t first_sonar = 0;
 
 /* timer/system booleans */
 bool send_system_state_now = true;
 bool receive_now = true;
 bool send_params_now = true;
 bool send_image_now = true;
+bool read_sonar_now = true;
 
 /**
   * @brief  Increment boot_time_ms variable and decrement timer array.
@@ -131,6 +135,18 @@ void timer_update_ms(void)
 	{
 		sonar_trigger();
 		timer[TIMER_SONAR] = SONAR_TIMER_COUNT;
+	}
+	
+	if (timer[TIMER_SONAR_LOW] == 0)
+	{
+		sonar_trigger_low();
+		read_sonar_now = true;
+		if(first_sonar == 0){
+			timer[TIMER_SONAR_LOW] = SONAR_LOW_TIMER_COUNT;
+			first_sonar = 1;
+		}else{
+			timer[TIMER_SONAR_LOW] = SONAR_TIMER_COUNT;
+		}
 	}
 
 	if (timer[TIMER_SYSTEM_STATE] == 0)
@@ -366,7 +382,10 @@ int main(void)
 		const float focal_length_px = 1.64f / 3.0f * 1000.0f; //original focal lenght: 1.64mm pixelsize: 3um
 
 		/* get sonar data */
-		sonar_read(&sonar_distance_filtered, &sonar_distance_raw);
+		if(read_sonar_now){
+			sonar_read(&sonar_distance_filtered, &sonar_distance_raw);
+			read_sonar_now = false;
+		}
 
 		/* compute optical flow */
 		if(global_data.param[PARAM_SENSOR_POSITION] == BOTTOM)

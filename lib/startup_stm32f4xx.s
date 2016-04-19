@@ -233,6 +233,7 @@ g_pfnVectors:
   .word     CRYP_IRQHandler                   /* CRYP crypto                  */                   
   .word     HASH_RNG_IRQHandler               /* Hash and Rng                 */
   .word     FPU_IRQHandler                    /* FPU                          */
+  .word     EXTI13_IRQHandler                 /* EXTI Line13                   */
                          
                          
 /*******************************************************************************
@@ -513,6 +514,9 @@ g_pfnVectors:
    .thumb_set HASH_RNG_IRQHandler,Default_Handler   
 
    .weak      FPU_IRQHandler                  
-   .thumb_set FPU_IRQHandler,Default_Handler  
+   .thumb_set FPU_IRQHandler,Default_Handler
+
+   .weak      EXTI13_IRQHandler         
+   .thumb_set EXTI13_IRQHandler,Default_Handler   
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
